@@ -1,9 +1,9 @@
 public class Message {
     Integer sender;
     Integer receiver;
-    String message;
+    Integer message;
 
-    public Message(Integer sender, Integer receiver, String message) {
+    public Message(Integer sender, Integer receiver, Integer message) {
         this.sender = sender;
         this.receiver = receiver;
         this.message = message;
@@ -25,11 +25,11 @@ public class Message {
         this.receiver = receiver;
     }
 
-    public String getMessage() {
+    public Integer getMessage() {
         return message;
     }
 
-    private void setMessage(String message) {
+    private void setMessage(Integer message) {
         this.message = message;
     }
 

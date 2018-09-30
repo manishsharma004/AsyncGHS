@@ -1,22 +1,28 @@
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 
 public class MasterThread {
 
-    public static void main(String args[]){
+    public static void main(String args[]) {
 
         int numWorkers = 4;
-        Processes[] workers = new Processes[numWorkers];
+        Process[] workers = new Process[numWorkers];
         for (int i = 0; i < workers.length; i++) {
-            workers[i] = new Processes(("thread-"+i), i);
+            workers[i] = new Process(("thread-" + i), i);
         }
-        //assign neighbors to input threads and then start the threads
-        for(int i = 0; i < workers.length; i++) {
-            //assigning only two neighbor to the thread 0 has neighbor 1 and 2, 1 has neighbor 2 and 3, 2 has neighbor 3 and 0
-            // 3 has neighbor 0 and 1
-            HashMap<Integer, Processes> neighbor = new HashMap<>();
-            neighbor.put((i+1)%4, workers[(i+1)%4]);
-            neighbor.put((i+2)%4, workers[(i+2)%4]);
-            workers[i].assignNeighbors(neighbor);
+
+        // TODO: read a text file to load the graph and assign neighbours
+        // below is a sample graph of diameter 2
+        Map neighbors = new HashMap();
+        neighbors.put(0, Arrays.asList(workers[1], workers[2], workers[3]));
+        neighbors.put(1, Arrays.asList(workers[0]));
+        neighbors.put(2, Arrays.asList(workers[0], workers[3]));
+        neighbors.put(3, Arrays.asList(workers[2], workers[0]));
+
+        for (int i = 0; i < workers.length; i++) {
+            workers[i].setNeighbors(neighbors);
+            workers[i].setDiameter(2);
         }
 
         for (int i = 0; i < workers.length; i++) {
