@@ -7,6 +7,7 @@ public class Processes extends Thread{
     BlockingQueue<Message> q = new LinkedBlockingDeque<>(10);
     int id;
     HashMap<Integer, Processes> neighbors;
+    MasterThread master;
     int count = 0;
 
     public Processes(String name, int id) {
@@ -20,8 +21,13 @@ public class Processes extends Thread{
         this.neighbors = neighbors;
     }
 
-    public void assignNeighbors(HashMap<Integer, Processes> neighbors) {
+    public void assignNeighbors(HashMap<Integer, Processes> neighbors, MasterThread master) {
         this.neighbors = neighbors;
+        this.master = master;
+    }
+
+    public void setMaster(MasterThread master) {
+        this.master = master;
     }
 
     @Override
@@ -34,7 +40,14 @@ public class Processes extends Thread{
         return p.q.add(m);
     }
 
-    //
+    private synchronized boolean pushToQueue(MasterThread p, Message m) {
+        return p.q.add(m);
+    }
+
+    synchronized  public boolean sendMessageToMaster(Message msg) {
+        return pushToQueue(this.master, msg);
+    }
+
     synchronized  public boolean putMessage(Message msg) {
         //need to check if the receiver is the neighbor of the process
         if (this.neighbors.containsKey(msg.receiver)) {
@@ -47,19 +60,23 @@ public class Processes extends Thread{
         //this is to stimulate adding message to neighbors queue
         int sender, receiver;
         String m;
-        sender = id;
-        receiver = (id +1)%4;
+        sender = this.id;
+        receiver = (this.id +1)%4;
         m = "msg" + sender + "-" + receiver;
         Message newm = new Message(sender, receiver, m);
         putMessage(newm);
 
-        receiver = (id +2)%4;
+        receiver = (this.id +2)%4;
         m = "msg" + sender + "-" + receiver;
         newm = new Message(sender, receiver, m);
         putMessage(newm);
 
+        m = "msg : Process " + sender + " has sent message to master";
+        newm = new Message(sender, this.master.id, m);
+        sendMessageToMaster(newm);
+
         //this is the actual getMessage
-        Message out = q.take();
+        Message out = this.q.take();
         this.count = this.count +1;
         return out;
     }
@@ -69,7 +86,8 @@ public class Processes extends Thread{
         try {
             while (true) {
                 //Currently for test run, to limit sending message to just 3 rounds
-                if (count > 3 ){
+                if (count > 2 ){
+                    sendMessageToMaster(new Message(this.id, 0, "COMPLETED"));
                     break;
                 }
 
