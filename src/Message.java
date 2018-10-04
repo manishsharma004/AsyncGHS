@@ -6,6 +6,7 @@ public class Message {
     public Message(Integer sender, Integer receiver, Integer message) {
         this.sender = sender;
         this.receiver = receiver;
+        // TODO: message must implement a protocol so that everyone understand what the message means
         this.message = message;
     }
 

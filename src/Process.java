@@ -1,25 +1,27 @@
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
 public class Process extends Thread {
-    int uid; // TODO: uid can be anything that can be compared
+    int uid; // TODO: uid can be anything that can be compared, must implement comparator
     int maxIdSeen = -1;
     int status = -1; // 0 for non-leader, 1 for leader
     int round = 0;  // initially round is 0
     int diameter;
-
+    MasterThread master;    // for synchronization
     BlockingQueue<Message> queue = new LinkedBlockingDeque<>(10);
-    Map<Integer, List<Process>> neighbors;
+    List<Process> neighbors;    // a process has local information only
+
+    public void setMaster(MasterThread master) {
+        this.master = master;
+    }
 
     public Process(String name, int uid) {
         super(name);
         this.uid = uid;
     }
 
-    public Process(String name, int uid, int diameter, HashMap<Integer, List<Process>> neighbors) {
+    public Process(String name, int uid, List<Process> neighbors) {
         super(name);
         this.uid = uid;
         this.neighbors = neighbors;
@@ -29,7 +31,7 @@ public class Process extends Thread {
         this.diameter = diameter;
     }
 
-    public void setNeighbors(Map<Integer, List<Process>> neighbors) {
+    public void setNeighbors(List<Process> neighbors) {
         this.neighbors = neighbors;
     }
 
@@ -49,6 +51,15 @@ public class Process extends Thread {
         return p.queue.add(m);
     }
 
+    private synchronized boolean pushToQueue(MasterThread p, Message m) {
+        return p.queue.add(m);
+    }
+
+    synchronized public boolean sendMessageToMaster(Message msg) {
+        return pushToQueue(this.master, msg);
+    }
+
+
     public int getUid() {
         return uid;
     }
@@ -56,8 +67,7 @@ public class Process extends Thread {
     synchronized public void message() throws InterruptedException {
         if (this.round <= this.diameter) {
             // send max uid seen so far to all neighbours
-            List<Process> outNeighbors = this.neighbors.get(this.uid);
-            for (Process p : outNeighbors) {
+            for (Process p : this.neighbors) {
                 Message msg = new Message(this.uid, p.getUid(), this.maxIdSeen);
                 this.pushToQueue(p, msg);
             }
@@ -89,7 +99,7 @@ public class Process extends Thread {
         try {
             while (true) {
                 if (this.status >= 0) {
-                    // TODO: print leader
+                    // TODO: send message to master notifying I am the leader
                     break;
                 } else {
                     this.message();
