@@ -13,9 +13,7 @@ public class MasterThread extends Thread {
     int round = 0;
     int diameter;
     HashSet<Integer> roundCompletedThreads = new HashSet<>();   // threads that finished current round
-    int noOfThreadsCompletedRound = 0;
     HashSet<Integer> terminatedThreads = new HashSet<Integer>();
-    int numOfTerminatedThreads = 0;
     Map<Integer, List<Integer>> graph;  // TODO: make a new class for undirected graph and use that
     // Why do we need this map? We have (say) N workers stored in an array.
     // worker[0] represents vertex id (say) 12 in the graph, worker[1] may represent 200.
@@ -60,18 +58,11 @@ public class MasterThread extends Thread {
         Message out = queue.take();
         switch (out.getType()) {
             case END_ROUND:
-                if (!this.roundCompletedThreads.contains(out.sender)) {
-                    this.roundCompletedThreads.add(out.sender);
-                    this.noOfThreadsCompletedRound += 1;
-                }
+                this.roundCompletedThreads.add(out.sender);
                 break;
 
             case TERMINATE:
-                if (!this.terminatedThreads.contains(out.sender) &&
-                        !this.workers[this.vertexIdToIndexMap.get(out.sender)].isAlive()) {
-                    this.terminatedThreads.add(out.sender);
-                    this.numOfTerminatedThreads += 1;
-                }
+                this.terminatedThreads.add(out.sender);
                 break;
 
             default:
@@ -79,23 +70,21 @@ public class MasterThread extends Thread {
         }
     }
 
-    synchronized public boolean checkForRoundTermination() {
-        if (this.numWorkers <= this.noOfThreadsCompletedRound) {
-            this.noOfThreadsCompletedRound = 0;
+    synchronized public boolean hasCurrentRoundTerminated() {
+        if (this.numWorkers <= this.roundCompletedThreads.size()) {
             this.roundCompletedThreads = new HashSet<Integer>();
-            System.out.println("All workers have finished round " + this.round + ". Starting new round...");
+            System.out.println("All workers have finished round " + this.round + ". Starting next round");
             return true;
         }
         return false;
     }
 
-    synchronized public boolean checkForThreadTermination() {
-        for (int i = 0; i < workers.length; i++) {
-            if (workers[i].isAlive()) {
-                return false;
-            }
+    synchronized public boolean haveAllThreadsTerminated() {
+        if (this.numWorkers <= this.terminatedThreads.size()) {
+            return true;
+        } else {
+            return false;
         }
-        return true;
     }
 
     synchronized public boolean startNewRound() {
@@ -107,7 +96,7 @@ public class MasterThread extends Thread {
     synchronized public void waitForAllWorkersCompletion() throws InterruptedException {
         while (true) {
             handleMessage();
-            if (checkForRoundTermination()) {
+            if (hasCurrentRoundTerminated() || haveAllThreadsTerminated()) {
                 break;
             }
         }
@@ -159,14 +148,9 @@ public class MasterThread extends Thread {
         try {
             spawnWorkers();
             System.out.println("Workers spawned");
-            while (!checkForThreadTermination()) {
+            while (!haveAllThreadsTerminated()) {
                 startNewRound();
                 waitForAllWorkersCompletion();
-            }
-            if (checkForThreadTermination()) {
-                if (this.numWorkers <= this.numOfTerminatedThreads) {
-                    System.out.println("All workers have terminated.");
-                }
             }
             System.out.println("Terminating " + this.getName());
         } catch (InterruptedException e) {

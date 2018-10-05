@@ -140,7 +140,7 @@ public class Process extends Thread {
 
         if (this.round == this.diameter + 1) {
             if (this.maxIdSeen == this.uid) {
-                System.out.println("Electing " + this.uid + " LEADER");
+                System.out.println("Electing " + this.getName() + " LEADER");
                 this.isLeader = true;
             } else {
                 this.isLeader = false;
