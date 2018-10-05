@@ -5,7 +5,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 public class Process extends Thread {
     int uid; // TODO: uid can be anything that can be compared, must implement comparator
     int maxIdSeen = -1;
-    int status = -1; // 0 for non-leader, 1 for leader
+    boolean isLeader;
     int round = 0;  // initially round is 0
     int diameter;
     MasterThread master;    // for synchronization
@@ -64,44 +64,62 @@ public class Process extends Thread {
         return uid;
     }
 
-    synchronized public void message() throws InterruptedException {
-        if (this.round <= this.diameter) {
-            // send max uid seen so far to all neighbours
-            for (Process p : this.neighbors) {
-                Message msg = new Message(this.uid, p.getUid(), String.valueOf(this.maxIdSeen), MessageType.EXPLORE);
-                this.pushToQueue(p, msg);
+    public synchronized void waitUntilMasterStartsNewRound() throws InterruptedException {
+        while (true) {
+            Message msg = this.queue.take();
+            if (msg.getType().equals(MessageType.START_ROUND)) {
+                if (msg.message > this.round) {
+                    this.round = msg.message;
+                } else {
+                    // This should never happen
+                    throw new InterruptedException("Received round < current round");
+                }
+                return;
+            } else {
+                this.queue.add(msg);
             }
         }
+    }
+
+    public synchronized void sendRoundCompletionToMaster() {
+        this.sendMessageToMaster(new Message(this.uid, 0, this.round, MessageType.END_ROUND));
     }
 
     synchronized private void handleExploreMsg(Message message) throws InterruptedException {
         /**
          * Handles explore message by updating the max id seen so far.
          */
-        int idReceived = Integer.parseInt(message.message);
+        int idReceived = message.message;
         if (idReceived > this.maxIdSeen) {
             this.maxIdSeen = idReceived;
         }
     }
 
+    synchronized public void message() throws InterruptedException {
+        if (this.round <= this.diameter) {
+            // send max uid seen so far to all neighbours
+            for (Process p : this.neighbors) {
+                Message msg = new Message(this.uid, p.getUid(), this.uid, MessageType.EXPLORE);
+                this.pushToQueue(p, msg);
+            }
+        }
+    }
+
     synchronized public void transition() throws InterruptedException {
-        this.round += 1;
-        // TODO: write convergecast that doesn't assume knowledge of diameter
-        if (round == this.diameter) {
+        if (this.round == this.diameter) {
             if (this.maxIdSeen == this.uid) {
-                this.status = 1;
+                this.isLeader = true;
             } else {
-                this.status = 0;
+                this.isLeader = false;
             }
         }
         // get all messages from neighbours (i.e. current process's queue) and update maxIdSeen
         Message inMsg;
         while (!queue.isEmpty()) {
             inMsg = queue.take();
-            // TODO: handle all ACKs and NACKs also, when diameter is unknown
             switch (inMsg.getType()) {
                 case EXPLORE:
-                    this.handleExploreMsg(inMsg);
+                    handleExploreMsg(inMsg);
                     break;
             }
         }
@@ -111,13 +129,14 @@ public class Process extends Thread {
     public void run() {
         try {
             while (true) {
-                if (this.status >= 0) {
-                    // TODO: send message to master notifying I am the leader
+                if (this.round > this.diameter) {
+                    System.out.println("Is " + this.uid + " leader after round " + this.round + "? " + this.isLeader);
                     break;
-                } else {
-                    this.message();
-                    this.transition();
                 }
+                this.waitUntilMasterStartsNewRound();
+                this.message();
+                this.transition();
+                this.sendRoundCompletionToMaster();
             }
         } catch (InterruptedException e) {
         }

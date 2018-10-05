@@ -1,13 +1,12 @@
 public class Message {
     Integer sender;
     Integer receiver;
-    String message;
+    Integer message;
     MessageType type;
 
-    public Message(Integer sender, Integer receiver, String message, MessageType type) {
+    public Message(Integer sender, Integer receiver, Integer message, MessageType type) {
         this.sender = sender;
         this.receiver = receiver;
-        // TODO: message must implement a protocol so that everyone understand what the message means
         this.message = message;
         this.type = type;
     }
@@ -28,11 +27,11 @@ public class Message {
         this.receiver = receiver;
     }
 
-    public String getMessage() {
+    public Integer getMessage() {
         return message;
     }
 
-    public void setMessage(String message) {
+    public void setMessage(Integer message) {
         this.message = message;
     }
 
@@ -50,6 +49,7 @@ public class Message {
                 "sender=" + sender +
                 ", receiver=" + receiver +
                 ", message='" + message + '\'' +
+                ", type=" + type +
                 '}';
     }
 }
