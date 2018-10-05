@@ -8,10 +8,12 @@ public class MasterThread extends Thread{
     BlockingQueue<Message> q = new LinkedBlockingDeque<>();
     int id;
     Processes[] workers;
-    int count = 0;
     int numWorkers = 0;
     HashSet<Integer> terminatedThreads = new HashSet<Integer>();
     int numOfTerminatedThreads = 0;
+    int round = 0;
+    HashSet<Integer> roundCompletedThreads = new HashSet<Integer>();
+    int noOfThreadsCompletedRound = 0;
 
     public MasterThread(String name, int id) {
         super(name);
@@ -50,20 +52,34 @@ public class MasterThread extends Thread{
         return true;
     }
 
-    synchronized  public Message getMessage() throws InterruptedException{
+    synchronized  public Message handleMessage(Message msg) throws InterruptedException {
+        if (msg == null) return null;
+        System.out.println(this.getName() + " : " + msg.toString());
 
-        //this is the actual getMessage
-        Message out = q.take();
-        if (out.message.equals("COMPLETED") && !terminatedThreads.contains(out.sender)) {
-            this.terminatedThreads.add(out.sender);
-            this.numOfTerminatedThreads += 1;
+        switch(msg.messageType) {
+            case END_ROUND:
+                if (!this.roundCompletedThreads.contains(msg.sender)) {
+                    this.roundCompletedThreads.add(msg.sender);
+                    this.noOfThreadsCompletedRound += 1;
+                }
+                break;
+            case TERMINATE:
+                if(!this.terminatedThreads.contains(msg.sender) && !this.workers[msg.sender].isAlive()) {
+                    this.terminatedThreads.add(msg.sender);
+                    this.numOfTerminatedThreads += 1;
+                }
+            default: break;
         }
-        this.count = this.count +1;
-        return out;
+        return msg;
     }
 
-    public void startChildThreads() {
-        int numWorkers = 4;
+    synchronized  public Message getMessage() throws InterruptedException{
+        //this is the actual getMessage
+        return handleMessage(q.take());
+    }
+
+    synchronized public void startWorkerThreads() {
+        int numWorkers = 3;
         Processes[] workers = new Processes[numWorkers];
         for (int i = 0; i < workers.length; i++) {
             workers[i] = new Processes(("thread-"+i), i);
@@ -84,31 +100,60 @@ public class MasterThread extends Thread{
 
         this.numWorkers = numWorkers;
         this.workers = workers;
-        this.broadcastMessage(new Message(0, 0, "BroadCast Message From Master"));
+    }
+
+    synchronized public boolean checkForRoundTermination() {
+        if (this.numWorkers <= this.noOfThreadsCompletedRound) {
+            this.noOfThreadsCompletedRound = 0;
+            this.roundCompletedThreads = new HashSet<Integer>();
+            System.out.println("All Children Threads Have Completed the Current Round, Master Threads also will start new round");
+            return true;
+        }
+        return false;
+    }
+
+    synchronized public boolean checkForThreadTermination() {
+        for (int i = 0; i < workers.length; i++) {
+            if (workers[i].isAlive()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    synchronized public boolean startNewRound() {
+        this.round += 1;
+        this.broadcastMessage(new Message(0, 0, this.round, MessageType.START_ROUND));
+        return false;
+    }
+
+    synchronized public void waitForAllWorkerCompletion() throws InterruptedException {
+        while(true){
+            Message x = getMessage();
+            if (x == null) {
+                continue;
+            }
+            if(checkForRoundTermination()) {
+                break;
+            }
+            Thread.sleep(1000);
+        }
     }
 
     @Override
     public void run() {
         try {
-            startChildThreads();
-            System.out.println("Child Threads started");
-            while (true) {
-
-                //Currently for test run, to limit sending message to just 3 rounds
+            startWorkerThreads();
+            while (!checkForThreadTermination()) {
+                startNewRound();
+                waitForAllWorkerCompletion();
+            }
+            if (checkForThreadTermination()) {
                 if (this.numWorkers <= this.numOfTerminatedThreads){
                     System.out.println("All Children Threads Have Terminated, Master Threads also Terminating");
-                    break;
                 }
-
-                //add a new message in neighbors queue and gets message from current queue
-                Message x = getMessage();
-                if (x == null) {
-                    continue;
-                }
-                System.out.println(this.getName() + " : " + x.toString());
-                Thread.sleep(1000);
-
             }
+            System.out.println("Terminating Master");
         } catch (InterruptedException e) {
         }
     }

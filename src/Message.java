@@ -1,12 +1,14 @@
 public class Message {
     Integer sender;
     Integer receiver;
-    String message;
+    Integer message;
+    MessageType messageType;
 
-    public Message(Integer sender, Integer receiver, String message) {
+    public Message(Integer sender, Integer receiver, Integer message, MessageType messageType) {
         this.sender = sender;
         this.receiver = receiver;
         this.message = message;
+        this.messageType = messageType;
     }
 
     public Integer getSender() {
@@ -25,12 +27,20 @@ public class Message {
         this.receiver = receiver;
     }
 
-    public String getMessage() {
+    public Integer getMessage() {
         return message;
     }
 
-    private void setMessage(String message) {
+    private void setMessage(Integer message) {
         this.message = message;
+    }
+
+    public MessageType getMessageType() {
+        return messageType;
+    }
+
+    private void setMessageType(MessageType messageType) {
+        this.messageType = messageType;
     }
 
     @Override
@@ -39,6 +49,7 @@ public class Message {
                 "sender=" + sender +
                 ", receiver=" + receiver +
                 ", message='" + message + '\'' +
+                ", messageType='" + messageType + '\'' +
                 '}';
     }
 }

@@ -4,20 +4,22 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
 public class Processes extends Thread{
-    BlockingQueue<Message> q = new LinkedBlockingDeque<>(10);
-    int id;
+    BlockingQueue<Message> q = new LinkedBlockingDeque<>();
+    int uid;
+    int maxUid = Integer.MAX_VALUE;
     HashMap<Integer, Processes> neighbors;
     MasterThread master;
     int count = 0;
+    int round = 0;
 
-    public Processes(String name, int id) {
+    public Processes(String name, int uid) {
         super(name);
-        this.id = id;
+        this.uid = uid;
     }
 
-    public Processes(String name, int id, HashMap<Integer, Processes> neighbors) {
+    public Processes(String name, int uid, HashMap<Integer, Processes> neighbors) {
         super(name);
-        this.id = id;
+        this.uid = uid;
         this.neighbors = neighbors;
     }
 
@@ -35,6 +37,27 @@ public class Processes extends Thread{
         super.start();
     }
 
+    synchronized  public Message getMessage() throws InterruptedException{
+        //this is the actual getMessage
+        Message out = this.q.take();
+        out = handleMessage(out);
+        this.count = this.count +1;
+        return out;
+    }
+
+    synchronized  public Message handleMessage(Message msg) throws InterruptedException {
+        if (msg == null) return null;
+        System.out.println(this.getName() + " : " + msg.toString());
+
+        switch(msg.messageType) {
+            case START_ROUND:
+                round = msg.message;
+                break;
+            default: break;
+        }
+        return msg;
+    }
+
     //push message to queue of any given thread(Process)
     private synchronized boolean pushToQueue(Processes p, Message m) {
         return p.q.add(m);
@@ -44,11 +67,11 @@ public class Processes extends Thread{
         return p.q.add(m);
     }
 
-    synchronized  public boolean sendMessageToMaster(Message msg) {
+    synchronized public boolean sendMessageToMaster(Message msg) {
         return pushToQueue(this.master, msg);
     }
 
-    synchronized  public boolean putMessage(Message msg) {
+    synchronized public boolean putMessage(Message msg) {
         //need to check if the receiver is the neighbor of the process
         if (this.neighbors.containsKey(msg.receiver)) {
             return pushToQueue(this.neighbors.get(msg.receiver), msg);
@@ -56,49 +79,72 @@ public class Processes extends Thread{
         return false;
     }
 
-    synchronized  public Message getMessage() throws InterruptedException{
-        //this is to stimulate adding message to neighbors queue
-        int sender, receiver;
-        String m;
-        sender = this.id;
-        receiver = (this.id +1)%4;
-        m = "msg" + sender + "-" + receiver;
-        Message newm = new Message(sender, receiver, m);
-        putMessage(newm);
+    synchronized public boolean broadcastMessageToAllNeighbors(int message, MessageType msgType) {
+        this.neighbors.forEach((key, value) -> {
+            pushToQueue(value, new Message(this.uid, key, message, msgType));
+        });
+        return true;
+    }
 
-        receiver = (this.id +2)%4;
-        m = "msg" + sender + "-" + receiver;
-        newm = new Message(sender, receiver, m);
-        putMessage(newm);
+    public void waitUntilMasterStartsNewRound() throws InterruptedException {
+        while(true) {
+            Message msg = this.q.take();
+            System.out.println(this.getName() + " : " + msg.toString());
 
-        m = "msg : Process " + sender + " has sent message to master";
-        newm = new Message(sender, this.master.id, m);
-        sendMessageToMaster(newm);
+            if (msg == null || msg.messageType != MessageType.START_ROUND) continue;
 
-        //this is the actual getMessage
-        Message out = this.q.take();
-        this.count = this.count +1;
-        return out;
+            if (msg.messageType.equals(MessageType.START_ROUND)) {
+                if (msg.message > this.round ) {
+                    this.round = msg.message;
+                }
+                else {
+                    throw new InterruptedException("Received round which is smaller than current round");
+                }
+                return;
+            }
+            else {
+                this.q.add(msg);
+            }
+        }
+    }
+
+    public void sendRoundCompletionMessageToMaster() {
+        this.sendMessageToMaster(new Message(this.uid, 0, this.round,  MessageType.END_ROUND));
+    }
+
+    public void processFloodMax() throws InterruptedException {
+
+        broadcastMessageToAllNeighbors(this.uid, MessageType.EXPLORE);
+
+        int countOfExploreFromNeighbors = 0;
+        while (countOfExploreFromNeighbors < this.neighbors.size()) {
+            Message msg = this.q.take();
+            if (msg == null ) { continue; }
+            System.out.println(this.getName() + " : " + msg.toString());
+            if (msg.messageType.equals(MessageType.EXPLORE)) {
+                countOfExploreFromNeighbors += 1;
+                if (this.maxUid < msg.message) {
+                    System.out.println(this.getName() + " : Max Uid Updated to " + msg.message + " by : " + msg.toString());
+                    this.maxUid = msg.message;
+                }
+            }
+        }
+        this.count += 1;
     }
 
     @Override
     public void run() {
         try {
-            while (true) {
-                //Currently for test run, to limit sending message to just 3 rounds
-                if (count > 2 ){
-                    sendMessageToMaster(new Message(this.id, 0, "COMPLETED"));
+            while(true) {
+                if (this.count > 1){
+                    sendMessageToMaster(new Message(this.uid, 0, 0, MessageType.TERMINATE));
                     break;
                 }
-
-                //add a new message in neioghbors queue and gets message from current queue
-                Message x = getMessage();
-                if (x == null) {
-                    break;
-                }
-                System.out.println(this.getName() + " : " + x.toString());
-
+                waitUntilMasterStartsNewRound();
+                processFloodMax();
+                sendRoundCompletionMessageToMaster();
             }
+            System.out.println("Terminating " + this.getName());
         } catch (InterruptedException e) {
         }
     }
