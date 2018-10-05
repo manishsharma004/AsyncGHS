@@ -1,20 +1,21 @@
 public class Message {
     Integer sender;
     Integer receiver;
-    Integer message;
+    String message;
+    MessageType type;
 
-    public Message(Integer sender, Integer receiver, Integer message) {
+    public Message(Integer sender, Integer receiver, String message, MessageType type) {
         this.sender = sender;
         this.receiver = receiver;
-        // TODO: message must implement a protocol so that everyone understand what the message means
         this.message = message;
+        this.type = type;
     }
 
     public Integer getSender() {
         return sender;
     }
 
-    private void setSender(Integer sender) {
+    public void setSender(Integer sender) {
         this.sender = sender;
     }
 
@@ -22,16 +23,24 @@ public class Message {
         return receiver;
     }
 
-    private void setReceiver(Integer receiver) {
+    public void setReceiver(Integer receiver) {
         this.receiver = receiver;
     }
 
-    public Integer getMessage() {
+    public String getMessage() {
         return message;
     }
 
-    private void setMessage(Integer message) {
+    public void setMessage(String message) {
         this.message = message;
+    }
+
+    public MessageType getType() {
+        return type;
+    }
+
+    public void setType(MessageType type) {
+        this.type = type;
     }
 
     @Override

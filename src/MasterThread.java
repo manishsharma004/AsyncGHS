@@ -10,6 +10,8 @@ public class MasterThread extends Thread {
     BlockingQueue<Message> queue = new LinkedBlockingDeque<>();
     Process[] workers;
     int numWorkers = 0;
+    int round = 0;
+    HashSet<Integer> currentRoundTerminatedThreads = new HashSet<>();   // threads that finished current round
     HashSet<Integer> terminatedThreads = new HashSet<Integer>();
     int numOfTerminatedThreads = 0;
     Map<Integer, List<Process>> graph;  // TODO: make a new class for undirected graph and use that
@@ -44,11 +46,28 @@ public class MasterThread extends Thread {
          * freed. If it chooses to continue, the master thread awaits messages from all non-terminated threads to give a
          * go-ahead for the next round. When the master receives a terminate signal from all workers, it shuts down.
          */
-        // TODO: handle the above logic
         Message out = queue.take();
-        if (out.message == -99 && !terminatedThreads.contains(out.sender)) {
+        if (out.getType() == MessageType.TERMINATE && !terminatedThreads.contains(out.sender)) {
             this.terminatedThreads.add(out.sender);
             this.numOfTerminatedThreads += 1;
+        }
+        switch (out.getType()) {
+            case TERMINATE:
+                this.terminatedThreads.add(out.sender);
+                this.numOfTerminatedThreads += 1;
+                break;
+
+            case END_ROUND:
+                // TODO: needs testing, might be missing some edge case
+                this.currentRoundTerminatedThreads.add(out.sender);
+                // if everyone has finished except those terminated, start new round
+                if (this.currentRoundTerminatedThreads.size() == (this.numWorkers - this.numOfTerminatedThreads)) {
+                    // broadcast message to all processes to start next round
+                    this.broadcastMessage(new Message(0, 0, "", MessageType.START_ROUND));
+                    this.round += 1;
+                    this.currentRoundTerminatedThreads.clear();
+                }
+                break;
         }
     }
 
@@ -72,7 +91,8 @@ public class MasterThread extends Thread {
 
         this.workers = workers;
         this.numWorkers = numWorkers;
-        this.broadcastMessage(new Message(0, 0, -1));
+        // we use 0 for sender and receiver ids when we broadcast, consider it dummy
+        this.broadcastMessage(new Message(0, 0, "", MessageType.START_ROUND));
     }
 
     @Override

@@ -1,3 +1,4 @@
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -68,9 +69,19 @@ public class Process extends Thread {
         if (this.round <= this.diameter) {
             // send max uid seen so far to all neighbours
             for (Process p : this.neighbors) {
-                Message msg = new Message(this.uid, p.getUid(), this.maxIdSeen);
+                Message msg = new Message(this.uid, p.getUid(), String.valueOf(this.maxIdSeen), MessageType.EXPLORE);
                 this.pushToQueue(p, msg);
             }
+        }
+    }
+
+    synchronized private void handleExploreMsg(Message message) throws InterruptedException {
+        /**
+         * Handles explore message by updating the max id seen so far and stores the list of processes to send NACKs to.
+         */
+        int idReceived = Integer.parseInt(message.message);
+        if (idReceived > this.maxIdSeen) {
+            this.maxIdSeen = idReceived;
         }
     }
 
@@ -88,8 +99,11 @@ public class Process extends Thread {
         Message inMsg;
         while (!queue.isEmpty()) {
             inMsg = queue.take();
-            if (inMsg.message > maxIdSeen) {
-                maxIdSeen = inMsg.message;
+            // TODO: handle all ACKs and NACKs also, when diameter is unknown
+            switch (inMsg.getType()) {
+                case EXPLORE:
+                    this.handleExploreMsg(inMsg);
+                    break;
             }
         }
     }
