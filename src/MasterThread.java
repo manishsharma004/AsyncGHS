@@ -14,10 +14,10 @@ public class MasterThread extends Thread {
     HashSet<Integer> currentRoundTerminatedThreads = new HashSet<>();   // threads that finished current round
     HashSet<Integer> terminatedThreads = new HashSet<Integer>();
     int numOfTerminatedThreads = 0;
-    Map<Integer, List<Process>> graph;  // TODO: make a new class for undirected graph and use that
+    Map<Integer, List<Integer>> graph;  // TODO: make a new class for undirected graph and use that
 
 
-    public MasterThread(String name, int id, Map<Integer, List<Process>> graph) {
+    public MasterThread(String name, int id, Map<Integer, List<Integer>> graph) {
         super(name);
         this.id = id;
         this.graph = graph;
@@ -75,17 +75,40 @@ public class MasterThread extends Thread {
         int numWorkers = this.graph.keySet().size();
         Process[] workers = new Process[numWorkers];
 
-        // assign neighbors by reading the graph
+        // spawn processes
         Set<Integer> keySet = this.graph.keySet();
         Iterator<Integer> keySetIterator = keySet.iterator();
-        int i = 0;
+        int index = 0;
+
+        // Why do we need this map? We have (say) N workers stored in an array.
+        // worker[0] represents vertex id (say) 12 in the graph, worker[1] may represent 200.
+        // We need to know the vertex id (12 or 200 in this case) to the index (0 or 1, respectively) in this case, so
+        // when we look up a certain vertex id (200), we know which worker (1) to go to
+        Map<Integer, Integer> vertexIdToIndexMap = new HashMap<>();
+
         while (keySetIterator.hasNext()) {
             Integer vertexId = keySetIterator.next();
-            workers[i] = new Process("thread-" + vertexId, vertexId, this.graph.get(vertexId));
-            i += 1;
+            workers[index] = new Process("thread-" + vertexId, vertexId);
+            vertexIdToIndexMap.put(vertexId, index);
+            index += 1;
         }
 
-        for (i = 0; i < workers.length; i++) {
+        // assign neighbours
+        for (int i = 0; i < workers.length; i++) {
+            // get vertex id of i-th worker
+            Integer vertexId = workers[i].getUid();
+            // get neighbours of this vertex
+            List<Integer> neighborVertexIds = this.graph.get(vertexId);
+            // get workers that correspond to these neighbors
+            List<Process> adjacentProcesses = new ArrayList<>();
+            for (Integer neighborVertex : neighborVertexIds) {
+                adjacentProcesses.add(workers[vertexIdToIndexMap.get(neighborVertex)]);
+            }
+            workers[i].setNeighbors(adjacentProcesses);
+        }
+
+        // start all workers
+        for (int i = 0; i < workers.length; i++) {
             workers[i].start();
         }
 

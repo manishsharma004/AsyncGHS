@@ -76,7 +76,7 @@ public class Process extends Thread {
 
     synchronized private void handleExploreMsg(Message message) throws InterruptedException {
         /**
-         * Handles explore message by updating the max id seen so far and stores the list of processes to send NACKs to.
+         * Handles explore message by updating the max id seen so far.
          */
         int idReceived = Integer.parseInt(message.message);
         if (idReceived > this.maxIdSeen) {
@@ -121,5 +121,12 @@ public class Process extends Thread {
             }
         } catch (InterruptedException e) {
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Process{" +
+                "uid=" + uid +
+                '}';
     }
 }
