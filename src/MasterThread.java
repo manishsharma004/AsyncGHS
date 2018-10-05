@@ -67,7 +67,8 @@ public class MasterThread extends Thread {
                 break;
 
             case TERMINATE:
-                if (!this.terminatedThreads.contains(out.sender) && !this.workers[out.sender].isAlive()) {
+                if (!this.terminatedThreads.contains(out.sender) &&
+                        !this.workers[this.vertexIdToIndexMap.get(out.sender)].isAlive()) {
                     this.terminatedThreads.add(out.sender);
                     this.numOfTerminatedThreads += 1;
                 }
@@ -75,7 +76,6 @@ public class MasterThread extends Thread {
 
             default:
                 break;
-
         }
     }
 
@@ -152,8 +152,6 @@ public class MasterThread extends Thread {
 
         this.workers = workers;
         this.numWorkers = numWorkers;
-        // we use 0 for sender and receiver ids when we broadcast, consider it dummy
-        this.broadcastMessage(new Message(0, 0, 1, MessageType.START_ROUND));
     }
 
     @Override

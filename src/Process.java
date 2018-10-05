@@ -4,7 +4,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 public class Process extends Thread {
     int uid; // TODO: uid can be anything that can be compared, must implement comparator
-    int maxIdSeen = -1;
+    int maxIdSeen;
     boolean isLeader;
     int round = 0;  // initially round is 0
     int diameter;
@@ -19,11 +19,13 @@ public class Process extends Thread {
     public Process(String name, int uid) {
         super(name);
         this.uid = uid;
+        this.maxIdSeen = uid;
     }
 
     public Process(String name, int uid, List<Process> neighbors) {
         super(name);
         this.uid = uid;
+        this.maxIdSeen = uid;
         this.neighbors = neighbors;
     }
 
@@ -68,6 +70,7 @@ public class Process extends Thread {
         while (true) {
             Message msg = this.queue.take();
             if (msg.getType().equals(MessageType.START_ROUND)) {
+                // System.out.println(this.uid + " can START_ROUND " + msg.message + " now.");
                 if (msg.message > this.round) {
                     this.round = msg.message;
                 } else {
@@ -82,7 +85,13 @@ public class Process extends Thread {
     }
 
     public synchronized void sendRoundCompletionToMaster() {
+        // System.out.println(this.uid + " sending END_ROUND message to master");
         this.sendMessageToMaster(new Message(this.uid, 0, this.round, MessageType.END_ROUND));
+    }
+
+    public synchronized void sendTerminationToMaster() {
+        System.out.println(this.getName() + " sending TERMINATE to master");
+        this.sendMessageToMaster(new Message(this.uid, 0, 0, MessageType.TERMINATE));
     }
 
     synchronized private void handleExploreMsg(Message message) throws InterruptedException {
@@ -96,24 +105,27 @@ public class Process extends Thread {
     }
 
     synchronized public void message() throws InterruptedException {
-        if (this.round <= this.diameter) {
-            // send max uid seen so far to all neighbours
-            for (Process p : this.neighbors) {
-                Message msg = new Message(this.uid, p.getUid(), this.uid, MessageType.EXPLORE);
-                this.pushToQueue(p, msg);
-            }
+        // send max uid seen so far to all neighbours
+        for (Process p : this.neighbors) {
+            Message msg = new Message(this.uid, p.getUid(), this.maxIdSeen, MessageType.EXPLORE);
+            this.pushToQueue(p, msg);
         }
     }
 
+    private boolean isReadyToTerminate() {
+        return this.round == (this.diameter + 1);
+    }
+
     synchronized public void transition() throws InterruptedException {
-        if (this.round == this.diameter) {
-            if (this.maxIdSeen == this.uid) {
-                this.isLeader = true;
-            } else {
-                this.isLeader = false;
+        // wait until messages from all neighbors have arrived
+        while (true) {
+            if (this.queue.size() == this.neighbors.size()) {
+                break;
             }
         }
-        // get all messages from neighbours (i.e. current process's queue) and update maxIdSeen
+        // System.out.println(this.getName() + " received messages from all " + this.neighbors.size() + " neighbors");
+
+        // get messages from all neighbours (i.e. current process's queue) and update maxIdSeen
         Message inMsg;
         while (!queue.isEmpty()) {
             inMsg = queue.take();
@@ -121,22 +133,38 @@ public class Process extends Thread {
                 case EXPLORE:
                     handleExploreMsg(inMsg);
                     break;
+                default:
+                    break;
             }
         }
+
+        if (this.round == this.diameter + 1) {
+            if (this.maxIdSeen == this.uid) {
+                System.out.println("Electing " + this.uid + " LEADER");
+                this.isLeader = true;
+            } else {
+                this.isLeader = false;
+            }
+            return;
+        }
+
     }
+
 
     @Override
     public void run() {
         try {
             while (true) {
-                if (this.round > this.diameter) {
-                    System.out.println("Is " + this.uid + " leader after round " + this.round + "? " + this.isLeader);
-                    break;
-                }
                 this.waitUntilMasterStartsNewRound();
+                // queue should only have explore messages now
                 this.message();
                 this.transition();
-                this.sendRoundCompletionToMaster();
+                if (!isReadyToTerminate()) {
+                    this.sendRoundCompletionToMaster();
+                } else {
+                    this.sendTerminationToMaster();
+                    throw new InterruptedException(this.getName() + " shutting down");
+                }
             }
         } catch (InterruptedException e) {
         }
