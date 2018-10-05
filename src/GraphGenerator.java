@@ -19,6 +19,7 @@ public class GraphGenerator {
         this.adj.put(11, Arrays.asList(1, 6));
         this.adj.put(6, Arrays.asList(8, 11));
         this.adj.put(8, Arrays.asList(1, 15));
+        this.adj.put(15, Arrays.asList(8));
     }
 
     public Map<Integer, List<Integer>> getAdj() {
