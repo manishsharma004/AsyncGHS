@@ -42,6 +42,7 @@ public class MasterThread extends Thread {
     }
 
     synchronized public boolean broadcastMessage(Message msg) {
+
         for (int i = 0; i < this.numWorkers; i++) {
             pushToQueue(this.workers[i], msg);
         }
@@ -80,15 +81,17 @@ public class MasterThread extends Thread {
     }
 
     synchronized public boolean haveAllThreadsTerminated() {
-        if (this.numWorkers <= this.terminatedThreads.size()) {
-            return true;
-        } else {
-            return false;
-        }
+//        if (this.numWorkers <= this.terminatedThreads.size()) {
+//            return true;
+//        } else {
+//            return false;
+//        }
+        return this.terminatedThreads.size() > 0;
     }
 
     synchronized public boolean startNewRound() {
         this.round += 1;
+        System.out.println("Broadcast Message to start Round " + this.round);
         this.broadcastMessage(new Message(0, 0, this.round, MessageType.START_ROUND));
         return false;
     }
@@ -97,6 +100,7 @@ public class MasterThread extends Thread {
         while (true) {
             handleMessage();
             if (hasCurrentRoundTerminated() || haveAllThreadsTerminated()) {
+                System.out.println("All the workers have terminated or round has terminated");
                 break;
             }
         }

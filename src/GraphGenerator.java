@@ -18,10 +18,11 @@ public class GraphGenerator {
         // TODO: generate random connected simple graph
         this.adj.put(1, Arrays.asList(10, 11, 8));
         this.adj.put(10, Arrays.asList(1));
-        this.adj.put(11, Arrays.asList(1, 6));
-        this.adj.put(6, Arrays.asList(8, 11));
+        this.adj.put(11, Arrays.asList(1, 6, 20));
+        this.adj.put(6, Arrays.asList(8, 11, 20));
         this.adj.put(8, Arrays.asList(1, 15, 6));
         this.adj.put(15, Arrays.asList(8));
+        this.adj.put(20, Arrays.asList(6, 11));
     }
 
     public int getDiameter() {
