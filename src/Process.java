@@ -23,13 +23,14 @@ public class Process extends Thread {
     HashSet<Integer> neighbors = new HashSet<>();
     HashSet<Integer> children = new HashSet<>();
     HashSet<Integer> others = new HashSet<>();  // should not include parent
+    HashSet<Integer> terminatedNeighbors = new HashSet<>();
 
-    // following are reset after every round, i.e. after transition() is processed
+    // TODO: following should reset after every round, i.e. after transition() is processed
+    // however, use this to calculate how many messages to expect in next round
     HashSet<Integer> receivedExploreFrom = new HashSet<>();
     HashSet<Integer> receivedNACKsFrom = new HashSet<>();
     HashSet<Integer> receivedACKsFrom = new HashSet<>();
     HashSet<Integer> receivedNullFrom = new HashSet<>();
-    HashSet<Integer> terminatedNeighbors = new HashSet<>();
 
     public void setMaster(MasterThread master) {
         this.master = master;
