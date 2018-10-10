@@ -117,38 +117,7 @@ public class Process extends Thread {
         Message terminateMsg = new Message(uid, MessageType.TERMINATE);
         Message nullMsg = new Message(uid, MessageType.DUMMY);
 
-        // find non terminated neighbors
-        HashSet<Integer> nonTerminatedNeighbors = neighbors;
-        nonTerminatedNeighbors.removeAll(terminatedNeighbors);
-
-        if (isReadyToTerminate) {
-            // send terminate to all neighbors
-            sendMessages(neighbors, terminateMsg);
-        } else {
-            // first order of business, reply to EXPLORE messages
-            if (parentId != -1) {
-                sendMessageToNeighbor(parentId, ackMsg);
-                HashSet<Integer> neighborsToSendNACK = receivedExploreFrom;
-                neighborsToSendNACK.remove(parentId);
-                sendMessages(neighborsToSendNACK, nackMsg);
-            }
-
-            // send NULL to those who send us NULL, basically nothing has changed between us
-            sendMessages(receivedNullFrom, nullMsg);
-
-            // share new info with neighbors
-            if (newInfo) {
-                // parent will be sent an ACK if we received new info
-                nonTerminatedNeighbors.remove(parentId);    // parent may (most likely will) be included
-                sendMessages(nonTerminatedNeighbors, exploreMsg);
-            } else {
-                if (parentId != -1) {   // we have a parent, no need to send them the same id again
-                    sendMessageToNeighbor(parentId, nullMsg);
-                }
-                nonTerminatedNeighbors.remove(parentId);
-                sendMessages(nonTerminatedNeighbors, nullMsg);
-            }
-        }
+        sendMessages(neighbors, exploreMsg);
     }
 
     /**
@@ -191,61 +160,75 @@ public class Process extends Thread {
         }
     }
 
+    public void processMessage(Message msg) {
+        switch (msg.getType()) {
+            case EXPLORE:
+                if (msg.maxId > maxIdSeen) {
+                    newInfo = true;
+                    parentId = msg.sender;
+                    maxIdSeen = msg.maxId;
+                }
+                receivedExploreFrom.add(msg.sender);
+                break;
+            case ACK:
+                children.add(msg.sender);
+                others.remove(msg.sender);
+                receivedACKsFrom.add(msg.sender);
+                break;
+            case NACK:
+                children.remove(msg.sender);
+                others.add(msg.sender);
+                receivedNACKsFrom.add(msg.sender);
+                break;
+            case DUMMY:
+                receivedNullFrom.add(msg.sender);
+                break;
+            case TERMINATE:
+                terminatedNeighbors.add(msg.sender);
+                break;
+            default:
+                break;
+        }
+    }
+
+    synchronized public void waitUntilMessagesProcessed() throws InterruptedException {
+        int numMessagesProcessed = 0;
+        while (numMessagesProcessed < neighborProcesses.size()) {
+            Message msg;
+            while (!queue.isEmpty()) {
+                msg = queue.take();
+                numMessagesProcessed += 1;
+                processMessage(msg);
+            }
+        }
+    }
+
     synchronized public void transition() throws InterruptedException {
         // wait until messages from all neighborProcesses have arrived
-        while (true) {
-            // initial round, we expect only explore messages from our neighbours
-            if (round == 1) {
-                if (queue.size() >= (neighbors.size() - terminatedNeighbors.size())) {
-                    break;
-                }
-            } else {
-                // TODO: calculate how many messages you are expecting
-                // this is just something to let the program progress, alternatively sleep for a second
-                if (queue.size() >= neighbors.size()) {
-                    break;
-                }
-            }
-        }
-
         newInfo = false;    // initially I do not have any new information
 
-        // process all messages we received
-        Message msg;
-        int numberOfMessagesProcessed = 0;
-        while (!queue.isEmpty()) {
-            msg = queue.take();
-            numberOfMessagesProcessed += 1;
-            switch (msg.getType()) {
-                case EXPLORE:
-                    if (msg.maxId > maxIdSeen) {
-                        newInfo = true;
-                        parentId = msg.sender;
-                        maxIdSeen = msg.maxId;
-                    }
-                    receivedExploreFrom.add(msg.sender);
-                    break;
-                case ACK:
-                    children.add(msg.sender);
-                    others.remove(msg.sender);
-                    receivedACKsFrom.add(msg.sender);
-                    break;
-                case NACK:
-                    children.remove(msg.sender);
-                    others.add(msg.sender);
-                    receivedNACKsFrom.add(msg.sender);
-                    break;
-                case DUMMY:
-                    receivedNullFrom.add(msg.sender);
-                    break;
-                case TERMINATE:
-                    terminatedNeighbors.add(msg.sender);
-                    break;
-                default:
-                    break;
+        // process all explore messages we received
+        waitUntilMessagesProcessed();
+
+        HashSet<Integer> sentNACK = new HashSet<Integer>();
+        // send ack, nacks - ack to parent, nack to rest
+        for (int id : neighbors) {
+            if (id == parentId) {
+                sendMessageToNeighbor(id, new Message(this.uid, MessageType.ACK));
+            } else {
+                sendMessageToNeighbor(id, new Message(this.uid, MessageType.NACK));
+                sentNACK.add(id);
             }
         }
 
+        System.out.println(this.uid + " got EXPLORE from " + receivedExploreFrom + ", sent ACK to " + parentId
+                + ", sent NACK to " + sentNACK);
+
+//        System.out.println(this.uid + " queue size: " + this.queue.size());
+
+        waitUntilMessagesProcessed();
+
+        System.out.println(this.uid + " received ACK from " + receivedACKsFrom + ", NACK from " + receivedNACKsFrom);
         // decide whether to terminate or elect self as leader
         checkTermination();
         checkLeader();
@@ -258,6 +241,12 @@ public class Process extends Thread {
                 waitUntilMasterStartsNewRound();
                 message();
                 transition();
+
+                // clear
+                receivedExploreFrom.clear();
+                receivedNACKsFrom.clear();
+                receivedACKsFrom.clear();
+                receivedNullFrom.clear();
 
                 if (!isReadyToTerminate) {
                     sendRoundCompletionToMaster();
