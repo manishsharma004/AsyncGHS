@@ -47,7 +47,7 @@ public class Process extends Thread {
     }
 
     public void setNeighborProcesses(List<Process> neighborProcesses) {
-        neighborProcesses = neighborProcesses;
+        this.neighborProcesses = neighborProcesses;
         for (Process p : neighborProcesses) {
             neighbors.add(p.getUid());
             vertexToProcess.put(p.getUid(), p);
@@ -187,20 +187,19 @@ public class Process extends Thread {
 
     synchronized public void transition() throws InterruptedException {
         // wait until messages from all neighborProcesses have arrived
-//        while (true) {
-//            // initial round, we expect only explore messages from our neighbours
-//            if (round == 1) {
-//                if (queue.size() >= (neighbors.size() - terminatedNeighbors.size())) {
-//                    break;
-//                }
-//            } else {
-//                // TODO: this is a hack, do a proper calculation using the states from previous round
-//                if (queue.size() > terminatedNeighbors.size()) {
-//                    break;
-//                }
-//            }
-//        }
-        Thread.sleep(1000);
+        while (true) {
+            // initial round, we expect only explore messages from our neighbours
+            if (round == 1) {
+                if (queue.size() >= (neighbors.size() - terminatedNeighbors.size())) {
+                    break;
+                }
+            } else {
+                // TODO: this is a hack, do a proper calculation using the states from previous round
+                if (queue.size() > terminatedNeighbors.size()) {
+                    break;
+                }
+            }
+        }
 
         newInfo = false;    // initially I do not have any new information
 
