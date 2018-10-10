@@ -1,13 +1,16 @@
 public class Message {
     Integer sender;
-    Integer receiver;
-    Integer message;
+    Integer maxId;
     MessageType type;
 
-    public Message(Integer sender, Integer receiver, Integer message, MessageType type) {
+    public Message(Integer sender, Integer maxId, MessageType type) {
         this.sender = sender;
-        this.receiver = receiver;
-        this.message = message;
+        this.maxId = maxId;
+        this.type = type;
+    }
+
+    public Message(Integer sender, MessageType type) {
+        this.sender = sender;
         this.type = type;
     }
 
@@ -19,20 +22,12 @@ public class Message {
         this.sender = sender;
     }
 
-    public Integer getReceiver() {
-        return receiver;
+    public Integer getMaxId() {
+        return maxId;
     }
 
-    public void setReceiver(Integer receiver) {
-        this.receiver = receiver;
-    }
-
-    public Integer getMessage() {
-        return message;
-    }
-
-    public void setMessage(Integer message) {
-        this.message = message;
+    public void setMaxId(Integer maxId) {
+        this.maxId = maxId;
     }
 
     public MessageType getType() {
@@ -47,8 +42,7 @@ public class Message {
     public String toString() {
         return "Message{" +
                 "sender=" + sender +
-                ", receiver=" + receiver +
-                ", message='" + message + '\'' +
+                ", maxId=" + maxId +
                 ", type=" + type +
                 '}';
     }

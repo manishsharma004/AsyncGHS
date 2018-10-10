@@ -2,10 +2,11 @@ import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
+/**
+ * The master thread is responsible for spawning and synchronizing the worker threads.
+ */
 public class MasterThread extends Thread {
-    /**
-     * The master thread is responsible for spawning and synchronizing the worker threads.
-     */
+
     int id;
     BlockingQueue<Message> queue = new LinkedBlockingDeque<>();
     Process[] workers;
@@ -14,22 +15,17 @@ public class MasterThread extends Thread {
     int diameter;
     HashSet<Integer> roundCompletedThreads = new HashSet<>();   // threads that finished current round
     HashSet<Integer> terminatedThreads = new HashSet<Integer>();
-    Map<Integer, List<Integer>> graph;  // TODO: make a new class for undirected graph and use that
-    // Why do we need this map? We have (say) N workers stored in an array.
-    // worker[0] represents vertex id (say) 12 in the graph, worker[1] may represent 200.
-    // We need to know the vertex id (12 or 200 in this case) to the index (0 or 1, respectively) in this case, so
-    // when we look up a certain vertex id (200), we know which worker (1) to go to
-    Map<Integer, Integer> vertexIdToIndexMap;
+    Map<Integer, List<Integer>> graph;
+    Map<Integer, Integer> vertexIdToProcessMap;
 
     public void setWorkers(Process[] workers) {
         this.workers = workers;
     }
 
-    public MasterThread(String name, int id, Map<Integer, List<Integer>> graph, int diameter) {
+    public MasterThread(String name, int id, Map<Integer, List<Integer>> graph) {
         super(name);
         this.id = id;
         this.graph = graph;
-        this.diameter = diameter;
     }
 
     @Override
@@ -49,13 +45,13 @@ public class MasterThread extends Thread {
         return true;
     }
 
+    /**
+     * Handles maxId received from workers. The workers can either terminate or choose to continue to the next
+     * round. If a worker thread sends a terminate signal to the master, it is terminated and the resources are
+     * freed. If it chooses to continue, the master thread awaits messages from all non-terminated threads to give a
+     * go-ahead for the next round. When the master receives a terminate signal from all workers, it shuts down.
+     */
     synchronized public void handleMessage() throws InterruptedException {
-        /**
-         * Handles message received from workers. The workers can either terminate or choose to continue to the next
-         * round. If a worker thread sends a terminate signal to the master, it is terminated and the resources are
-         * freed. If it chooses to continue, the master thread awaits messages from all non-terminated threads to give a
-         * go-ahead for the next round. When the master receives a terminate signal from all workers, it shuts down.
-         */
         Message out = queue.take();
         switch (out.getType()) {
             case END_ROUND:
@@ -81,18 +77,17 @@ public class MasterThread extends Thread {
     }
 
     synchronized public boolean haveAllThreadsTerminated() {
-//        if (this.numWorkers <= this.terminatedThreads.size()) {
-//            return true;
-//        } else {
-//            return false;
-//        }
-        return this.terminatedThreads.size() > 0;
+        if (this.numWorkers <= this.terminatedThreads.size()) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     synchronized public boolean startNewRound() {
         this.round += 1;
         System.out.println("Broadcast Message to start Round " + this.round);
-        this.broadcastMessage(new Message(0, 0, this.round, MessageType.START_ROUND));
+        this.broadcastMessage(new Message(0, this.round, MessageType.START_ROUND));
         return false;
     }
 
@@ -107,44 +102,43 @@ public class MasterThread extends Thread {
     }
 
     public void spawnWorkers() {
-        int numWorkers = this.graph.keySet().size();
-        Process[] workers = new Process[numWorkers];
+        int numProcesses = this.graph.keySet().size();
+        Process[] processes = new Process[numProcesses];
 
         // spawn processes
         Set<Integer> keySet = this.graph.keySet();
         Iterator<Integer> keySetIterator = keySet.iterator();
         int index = 0;
-        this.vertexIdToIndexMap = new HashMap<>();
+        this.vertexIdToProcessMap = new HashMap<>();
         while (keySetIterator.hasNext()) {
             Integer vertexId = keySetIterator.next();
-            workers[index] = new Process("thread-" + vertexId, vertexId);
-            this.vertexIdToIndexMap.put(vertexId, index);
+            processes[index] = new Process("thread-" + vertexId, vertexId);
+            this.vertexIdToProcessMap.put(vertexId, index);
             index += 1;
         }
 
-        // assign neighbours and set diameter
-        for (int i = 0; i < workers.length; i++) {
+        // assign neighbours
+        for (int i = 0; i < processes.length; i++) {
             // get vertex id of i-th worker
-            Integer vertexId = workers[i].getUid();
+            Integer vertexId = processes[i].getUid();
             // get neighbours of this vertex
             List<Integer> neighborVertexIds = this.graph.get(vertexId);
-            // get workers that correspond to these neighbors
+            // get workers that correspond to these neighborProcesses
             List<Process> adjacentProcesses = new ArrayList<>();
             for (Integer neighborVertex : neighborVertexIds) {
-                adjacentProcesses.add(workers[this.vertexIdToIndexMap.get(neighborVertex)]);
+                adjacentProcesses.add(processes[this.vertexIdToProcessMap.get(neighborVertex)]);
             }
-            workers[i].setNeighbors(adjacentProcesses);
-            workers[i].setDiameter(this.diameter);
-            workers[i].setMaster(this);
+            processes[i].setNeighborProcesses(adjacentProcesses);
+            processes[i].setMaster(this);
         }
 
         // start all workers
-        for (int i = 0; i < workers.length; i++) {
-            workers[i].start();
+        for (int i = 0; i < processes.length; i++) {
+            processes[i].start();
         }
 
-        this.workers = workers;
-        this.numWorkers = numWorkers;
+        this.workers = processes;
+        this.numWorkers = numProcesses;
     }
 
     @Override
