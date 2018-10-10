@@ -1,5 +1,6 @@
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.LinkedBlockingDeque;
 
 /**
@@ -12,7 +13,7 @@ public class MasterThread extends Thread {
     Process[] workers;
     int numWorkers = 0;
     int round = 0;
-    int diameter;
+    CyclicBarrier barrier;
     HashSet<Integer> roundCompletedThreads = new HashSet<>();   // threads that finished current round
     HashSet<Integer> terminatedThreads = new HashSet<Integer>();
     Map<Integer, List<Integer>> graph;
@@ -26,6 +27,7 @@ public class MasterThread extends Thread {
         super(name);
         this.id = id;
         this.graph = graph;
+        this.barrier = new CyclicBarrier(this.graph.size());
     }
 
     @Override
@@ -112,7 +114,7 @@ public class MasterThread extends Thread {
         this.vertexIdToProcessMap = new HashMap<>();
         while (keySetIterator.hasNext()) {
             Integer vertexId = keySetIterator.next();
-            processes[index] = new Process("thread-" + vertexId, vertexId);
+            processes[index] = new Process("thread-" + vertexId, vertexId, barrier);
             this.vertexIdToProcessMap.put(vertexId, index);
             index += 1;
         }

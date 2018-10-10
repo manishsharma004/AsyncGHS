@@ -3,6 +3,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.LinkedBlockingDeque;
 
 public class Process extends Thread {
@@ -14,6 +16,8 @@ public class Process extends Thread {
     boolean isLeader;
     boolean newInfo = true;
     boolean isReadyToTerminate = false;
+
+    CyclicBarrier barrier;
 
     // TODO: max size of deque should be twice that of the number of neighbors
     // because each neighbor will send at most two messages
@@ -38,10 +42,11 @@ public class Process extends Thread {
         this.master = master;
     }
 
-    public Process(String name, int uid) {
+    public Process(String name, int uid, CyclicBarrier barrier) {
         super(name);
         this.uid = uid;
         this.maxIdSeen = uid;
+        this.barrier = barrier;
     }
 
     public int getUid() {
@@ -191,24 +196,21 @@ public class Process extends Thread {
         }
     }
 
-    synchronized public void waitUntilMessagesProcessed() throws InterruptedException {
-        int numMessagesProcessed = 0;
-        while (numMessagesProcessed < neighborProcesses.size()) {
-            Message msg;
-            while (!queue.isEmpty()) {
-                msg = queue.take();
-                numMessagesProcessed += 1;
-                processMessage(msg);
-            }
+    synchronized public void handleMessages() throws InterruptedException {
+        Message msg;
+        while (!queue.isEmpty()) {
+            msg = queue.take();
+            processMessage(msg);
         }
     }
 
-    synchronized public void transition() throws InterruptedException {
-        // wait until messages from all neighborProcesses have arrived
+    synchronized public void transition() throws InterruptedException, BrokenBarrierException {
         newInfo = false;    // initially I do not have any new information
 
+        barrier.await();    // wait until all threads have sent explore messages
+
         // process all explore messages we received
-        waitUntilMessagesProcessed();
+        handleMessages();
 
         HashSet<Integer> sentNACK = new HashSet<Integer>();
         // send ack, nacks - ack to parent, nack to rest
@@ -224,9 +226,9 @@ public class Process extends Thread {
         System.out.println(this.uid + " got EXPLORE from " + receivedExploreFrom + ", sent ACK to " + parentId
                 + ", sent NACK to " + sentNACK);
 
-//        System.out.println(this.uid + " queue size: " + this.queue.size());
+        barrier.await();
 
-        waitUntilMessagesProcessed();
+        handleMessages();
 
         System.out.println(this.uid + " received ACK from " + receivedACKsFrom + ", NACK from " + receivedNACKsFrom);
         // decide whether to terminate or elect self as leader
@@ -251,11 +253,16 @@ public class Process extends Thread {
                 if (!isReadyToTerminate) {
                     sendRoundCompletionToMaster();
                 } else {
+                    System.out.println(this.uid + " is ready to TERMINATE");
+                    // TODO: handle termination in master thread
+                    // this is why the program is stuck
                     sendTerminationToMaster();
-                    throw new InterruptedException(getName() + " shutting down");
                 }
             }
         } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (BrokenBarrierException e) {
+            e.printStackTrace();
         }
     }
 
