@@ -15,7 +15,9 @@ public class Process extends Thread {
     boolean newInfo = true;
     boolean isReadyToTerminate = false;
 
-    BlockingQueue<Message> queue = new LinkedBlockingDeque<>(10);
+    // TODO: max size of deque should be twice that of the number of neighbors
+    // because each neighbor will send at most two messages
+    BlockingQueue<Message> queue = new LinkedBlockingDeque<>(20);
     MasterThread master;
     List<Process> neighborProcesses;
     Map<Integer, Process> vertexToProcess = new HashMap<>();
@@ -136,11 +138,14 @@ public class Process extends Thread {
 
             // share new info with neighbors
             if (newInfo) {
+                // parent will be sent an ACK if we received new info
+                nonTerminatedNeighbors.remove(parentId);    // parent may (most likely will) be included
+                sendMessages(nonTerminatedNeighbors, exploreMsg);
+            } else {
                 if (parentId != -1) {   // we have a parent, no need to send them the same id again
                     sendMessageToNeighbor(parentId, nullMsg);
                 }
-                sendMessages(nonTerminatedNeighbors, exploreMsg);
-            } else {
+                nonTerminatedNeighbors.remove(parentId);
                 sendMessages(nonTerminatedNeighbors, nullMsg);
             }
         }
@@ -157,6 +162,7 @@ public class Process extends Thread {
         // check if a process has received notifications of completion from all its children
         HashSet<Integer> temp = children;
         temp.removeAll(terminatedNeighbors);
+        // TODO: Does this handle the first round?
         if (temp.isEmpty()) {
             // all children have terminated
             allChildrenTerminated = true;
@@ -166,7 +172,7 @@ public class Process extends Thread {
         // the process shouldn't expect a NACK from the parent to terminate, it may have happened in an earlier round
         temp = receivedNACKsFrom;
         temp.removeAll(others);
-        if (temp.isEmpty()) {
+        if (temp.isEmpty() && !others.isEmpty()) {
             receivedNACKFromOthers = true;
         }
 
@@ -194,8 +200,9 @@ public class Process extends Thread {
                     break;
                 }
             } else {
-                // TODO: this is a hack, do a proper calculation using the states from previous round
-                if (queue.size() > terminatedNeighbors.size()) {
+                // TODO: calculate how many messages you are expecting
+                // this is just something to let the program progress, alternatively sleep for a second
+                if (queue.size() >= neighbors.size()) {
                     break;
                 }
             }
@@ -211,12 +218,12 @@ public class Process extends Thread {
             numberOfMessagesProcessed += 1;
             switch (msg.getType()) {
                 case EXPLORE:
-                    receivedExploreFrom.add(msg.sender);
                     if (msg.maxId > maxIdSeen) {
                         newInfo = true;
                         parentId = msg.sender;
                         maxIdSeen = msg.maxId;
                     }
+                    receivedExploreFrom.add(msg.sender);
                     break;
                 case ACK:
                     children.add(msg.sender);
