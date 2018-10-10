@@ -187,19 +187,20 @@ public class Process extends Thread {
 
     synchronized public void transition() throws InterruptedException {
         // wait until messages from all neighborProcesses have arrived
-        while (true) {
-            // initial round, we expect only explore messages from our neighbours
-            if (round == 1) {
-                if (queue.size() >= (neighbors.size() - terminatedNeighbors.size())) {
-                    break;
-                }
-            } else {
-                // TODO: this is a hack, do a proper calculation using the states from previous round
-                if (queue.size() > terminatedNeighbors.size()) {
-                    break;
-                }
-            }
-        }
+//        while (true) {
+//            // initial round, we expect only explore messages from our neighbours
+//            if (round == 1) {
+//                if (queue.size() >= (neighbors.size() - terminatedNeighbors.size())) {
+//                    break;
+//                }
+//            } else {
+//                // TODO: this is a hack, do a proper calculation using the states from previous round
+//                if (queue.size() > terminatedNeighbors.size()) {
+//                    break;
+//                }
+//            }
+//        }
+        Thread.sleep(1000);
 
         newInfo = false;    // initially I do not have any new information
 
@@ -211,6 +212,7 @@ public class Process extends Thread {
             numberOfMessagesProcessed += 1;
             switch (msg.getType()) {
                 case EXPLORE:
+                    receivedExploreFrom.add(msg.sender);
                     if (msg.maxId > maxIdSeen) {
                         newInfo = true;
                         parentId = msg.sender;
@@ -220,12 +222,15 @@ public class Process extends Thread {
                 case ACK:
                     children.add(msg.sender);
                     others.remove(msg.sender);
+                    receivedACKsFrom.add(msg.sender);
                     break;
                 case NACK:
                     children.remove(msg.sender);
                     others.add(msg.sender);
+                    receivedNACKsFrom.add(msg.sender);
+                    break;
                 case DUMMY:
-                    // do nothing
+                    receivedNullFrom.add(msg.sender);
                     break;
                 case TERMINATE:
                     terminatedNeighbors.add(msg.sender);
