@@ -157,6 +157,10 @@ public class MasterThread extends Thread {
         System.out.println("Adjacency list: " + this.parentToNodeMap);
     }
 
+    public void terminateAllThreads() {
+        this.broadcastMessage(new Message(0, MessageType.KILL));
+    }
+
     @Override
     public void run() {
         try {
@@ -167,6 +171,7 @@ public class MasterThread extends Thread {
                 waitForAllWorkersCompletion();
             }
             printTree();
+            terminateAllThreads();
             System.out.println("Terminating " + this.getName());
         } catch (InterruptedException e) {
         }

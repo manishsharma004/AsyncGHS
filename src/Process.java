@@ -24,6 +24,7 @@ public class Process extends Thread {
     boolean isLeader;
     boolean newInfo = true;
     boolean isReadyToTerminate = false;
+    boolean selfKill = false;
 
     CyclicBarrier barrier;
 
@@ -120,7 +121,13 @@ public class Process extends Thread {
                     throw new InterruptedException("Received round < current round");
                 }
                 return;
-            } else {
+            }
+            else if (msg.getType().equals(MessageType.KILL)) {
+                //this.interrupt();break;
+                selfKill = true;
+                break;
+            }
+            else {
                 queue.add(msg);
             }
         }
@@ -252,6 +259,9 @@ public class Process extends Thread {
             while (true) {
 
                 waitUntilMasterStartsNewRound();
+                if (selfKill) {
+                    break;
+                }
                 message();
                 transition();
 
