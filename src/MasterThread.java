@@ -18,7 +18,7 @@ public class MasterThread extends Thread {
     HashSet<Integer> terminatedThreads = new HashSet<Integer>();
     Map<Integer, List<Integer>> graph;
     Map<Integer, Integer> nodeIdToProcessMap;
-    Map<Integer, Integer> nodeToParentMapping;
+    Map<Integer, HashSet<Integer>> parentToNodeMap;
 
     public void setWorkers(Process[] workers) {
         this.workers = workers;
@@ -29,7 +29,7 @@ public class MasterThread extends Thread {
         this.id = id;
         this.graph = graph;
         this.barrier = new CyclicBarrier(this.graph.size());
-        this.nodeToParentMapping = new HashMap<>();
+        this.parentToNodeMap = new HashMap<>();
     }
 
     @Override
@@ -65,7 +65,9 @@ public class MasterThread extends Thread {
             case TERMINATE:
                 this.terminatedThreads.add(out.sender);
                 this.roundCompletedThreads.add(out.sender);
-                nodeIdToProcessMap.put(out.sender, out.getMaxId());
+                HashSet<Integer> adj = parentToNodeMap.getOrDefault(out.getMaxId(), new HashSet<>());
+                adj.add(out.sender);
+                parentToNodeMap.put(out.getMaxId(), adj);
                 break;
 
             default:
@@ -148,7 +150,13 @@ public class MasterThread extends Thread {
         this.numWorkers = numProcesses;
     }
 
-    public void printTree() {}
+    /**
+     * Prints the final BFS tree as an adjacency list
+     */
+    public void printTree() {
+        System.out.println("Adjacency list: " + this.parentToNodeMap);
+    }
+
     @Override
     public void run() {
         try {

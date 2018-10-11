@@ -97,7 +97,7 @@ public class Process extends Thread {
         sendMessageToMaster(new Message(uid, parentId, MessageType.TERMINATE));
     }
 
-    synchronized  public void sendTerminationToProcess() {
+    synchronized public void sendTerminationToProcess() {
         sendMessages(neighbors, new Message(getUid(), MessageType.TERMINATE));
     }
 
@@ -138,7 +138,7 @@ public class Process extends Thread {
         boolean receivedNACKFromOthers = false;
 
         // check if a process has received notifications of completion from all its children
-        HashSet<Integer> temp = children;
+        HashSet<Integer> temp = ((HashSet<Integer>) children.clone());
         temp.removeAll(terminatedNeighbors);
         // TODO: Does this handle the first round?
         if (temp.isEmpty()) {
@@ -148,7 +148,7 @@ public class Process extends Thread {
 
         // check if a process has received NACKs from other neighbours
         // the process shouldn't expect a NACK from the parent to terminate, it may have happened in an earlier round
-        temp = receivedNACKsFrom;
+        temp = ((HashSet<Integer>) receivedNACKsFrom.clone());
         temp.removeAll(others);
         if (temp.isEmpty() && !others.isEmpty()) {
             receivedNACKFromOthers = true;
@@ -158,8 +158,7 @@ public class Process extends Thread {
             isReadyToTerminate = true;
         } else if (!newInfo && parentId == -1 && allChildrenTerminated && isLeader) {
             isReadyToTerminate = true;
-        }
-        else {
+        } else {
             isReadyToTerminate = false;
         }
 
@@ -192,6 +191,7 @@ public class Process extends Thread {
                 children.remove(msg.sender);
                 others.add(msg.sender);
                 receivedNACKsFrom.add(msg.sender);
+                isLeader = false;
                 break;
             case DUMMY:
                 receivedNullFrom.add(msg.sender);
