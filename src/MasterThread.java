@@ -154,6 +154,7 @@ public class MasterThread extends Thread {
      * Prints the final BFS tree as an adjacency list
      */
     public void printTree() {
+        System.out.println("Leader is " + this.parentToNodeMap.get(-1));
         System.out.println("Adjacency list: " + this.parentToNodeMap);
     }
 
@@ -170,6 +171,7 @@ public class MasterThread extends Thread {
                 startNewRound();
                 waitForAllWorkersCompletion();
             }
+
             printTree();
             terminateAllThreads();
             System.out.println("Terminating " + this.getName());
