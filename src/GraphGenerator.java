@@ -9,7 +9,7 @@ public class GraphGenerator {
      */
     private Map<Integer, List<Integer>> adj = new HashMap<>();
 
-    private int diameter = 3;
+//    private int diameter = 3;
 
     public GraphGenerator() {
         /**
@@ -25,12 +25,8 @@ public class GraphGenerator {
         this.adj.put(20, Arrays.asList(6, 11));
     }
 
-    public int getDiameter() {
-        return diameter;
-    }
-
-    public void setDiameter(int diameter) {
-        this.diameter = diameter;
+    public GraphGenerator(int edges) {
+       adj = RandomEdgeGraph.createGraph();
     }
 
     public Map<Integer, List<Integer>> getAdj() {
