@@ -94,7 +94,11 @@ public class Process extends Thread {
     }
 
     synchronized public void sendTerminationToMaster() {
-        sendMessageToMaster(new Message(uid, round, MessageType.TERMINATE));
+        sendMessageToMaster(new Message(uid, parentId, MessageType.TERMINATE));
+    }
+
+    synchronized  public void sendTerminationToProcess() {
+        sendMessages(neighbors, new Message(getUid(), MessageType.TERMINATE));
     }
 
     synchronized public void waitUntilMasterStartsNewRound() throws InterruptedException {
@@ -152,9 +156,13 @@ public class Process extends Thread {
 
         if (!newInfo && parentId != -1 && allChildrenTerminated && receivedNACKFromOthers) {
             isReadyToTerminate = true;
-        } else {
+        } else if (!newInfo && parentId == -1 && allChildrenTerminated && isLeader) {
+            isReadyToTerminate = true;
+        }
+        else {
             isReadyToTerminate = false;
         }
+
     }
 
     synchronized private void checkLeader() {
@@ -240,6 +248,7 @@ public class Process extends Thread {
     public void run() {
         try {
             while (true) {
+
                 waitUntilMasterStartsNewRound();
                 message();
                 transition();
@@ -256,6 +265,7 @@ public class Process extends Thread {
                     System.out.println(this.uid + " is ready to TERMINATE");
                     // TODO: handle termination in master thread
                     // this is why the program is stuck
+                    sendTerminationToProcess();
                     sendTerminationToMaster();
                 }
             }

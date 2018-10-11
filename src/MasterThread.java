@@ -17,7 +17,8 @@ public class MasterThread extends Thread {
     HashSet<Integer> roundCompletedThreads = new HashSet<>();   // threads that finished current round
     HashSet<Integer> terminatedThreads = new HashSet<Integer>();
     Map<Integer, List<Integer>> graph;
-    Map<Integer, Integer> vertexIdToProcessMap;
+    Map<Integer, Integer> nodeIdToProcessMap;
+    Map<Integer, Integer> nodeToParentMapping;
 
     public void setWorkers(Process[] workers) {
         this.workers = workers;
@@ -28,6 +29,7 @@ public class MasterThread extends Thread {
         this.id = id;
         this.graph = graph;
         this.barrier = new CyclicBarrier(this.graph.size());
+        this.nodeToParentMapping = new HashMap<>();
     }
 
     @Override
@@ -62,6 +64,8 @@ public class MasterThread extends Thread {
 
             case TERMINATE:
                 this.terminatedThreads.add(out.sender);
+                this.roundCompletedThreads.add(out.sender);
+                nodeIdToProcessMap.put(out.sender, out.getMaxId());
                 break;
 
             default:
@@ -79,6 +83,7 @@ public class MasterThread extends Thread {
     }
 
     synchronized public boolean haveAllThreadsTerminated() {
+        System.out.println("terminated Threads size : " + this.terminatedThreads.size());
         if (this.numWorkers <= this.terminatedThreads.size()) {
             return true;
         } else {
@@ -88,7 +93,7 @@ public class MasterThread extends Thread {
 
     synchronized public boolean startNewRound() {
         this.round += 1;
-        System.out.println("Broadcast Message to start Round " + this.round);
+        System.out.println("\n\nBroadcast Message to start Round " + this.round);
         this.broadcastMessage(new Message(0, this.round, MessageType.START_ROUND));
         return false;
     }
@@ -111,11 +116,11 @@ public class MasterThread extends Thread {
         Set<Integer> keySet = this.graph.keySet();
         Iterator<Integer> keySetIterator = keySet.iterator();
         int index = 0;
-        this.vertexIdToProcessMap = new HashMap<>();
+        this.nodeIdToProcessMap = new HashMap<>();
         while (keySetIterator.hasNext()) {
             Integer vertexId = keySetIterator.next();
             processes[index] = new Process("thread-" + vertexId, vertexId, barrier);
-            this.vertexIdToProcessMap.put(vertexId, index);
+            this.nodeIdToProcessMap.put(vertexId, index);
             index += 1;
         }
 
@@ -128,7 +133,7 @@ public class MasterThread extends Thread {
             // get workers that correspond to these neighborProcesses
             List<Process> adjacentProcesses = new ArrayList<>();
             for (Integer neighborVertex : neighborVertexIds) {
-                adjacentProcesses.add(processes[this.vertexIdToProcessMap.get(neighborVertex)]);
+                adjacentProcesses.add(processes[this.nodeIdToProcessMap.get(neighborVertex)]);
             }
             processes[i].setNeighborProcesses(adjacentProcesses);
             processes[i].setMaster(this);
@@ -143,6 +148,7 @@ public class MasterThread extends Thread {
         this.numWorkers = numProcesses;
     }
 
+    public void printTree() {}
     @Override
     public void run() {
         try {
@@ -152,6 +158,7 @@ public class MasterThread extends Thread {
                 startNewRound();
                 waitForAllWorkersCompletion();
             }
+            printTree();
             System.out.println("Terminating " + this.getName());
         } catch (InterruptedException e) {
         }
