@@ -121,11 +121,6 @@ public class Process extends Thread {
     synchronized public void message() {
         // defining messages
         Message exploreMsg = new Message(uid, maxIdSeen, MessageType.EXPLORE);
-        Message nackMsg = new Message(uid, MessageType.NACK);
-        Message ackMsg = new Message(uid, MessageType.ACK);
-        Message terminateMsg = new Message(uid, MessageType.TERMINATE);
-        Message nullMsg = new Message(uid, MessageType.DUMMY);
-
         sendMessages(neighbors, exploreMsg);
     }
 
@@ -235,10 +230,9 @@ public class Process extends Thread {
                 + ", sent NACK to " + sentNACK);
 
         barrier.await();
-
         handleMessages();
-
         System.out.println(this.uid + " received ACK from " + receivedACKsFrom + ", NACK from " + receivedNACKsFrom);
+
         // decide whether to terminate or elect self as leader
         checkTermination();
         checkLeader();
@@ -263,8 +257,6 @@ public class Process extends Thread {
                     sendRoundCompletionToMaster();
                 } else {
                     System.out.println(this.uid + " is ready to TERMINATE");
-                    // TODO: handle termination in master thread
-                    // this is why the program is stuck
                     sendTerminationToProcess();
                     sendTerminationToMaster();
                 }
