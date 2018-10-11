@@ -12,8 +12,6 @@ public class GraphGenerator {
 
     private Map<Integer, List<Integer>> adj = new HashMap<>();
 
-//    private int diameter = 3;
-
     public GraphGenerator() {
         /**
          * Generates a graph of provided size using random integers.
@@ -30,6 +28,10 @@ public class GraphGenerator {
 
     public GraphGenerator(int edges) {
        adj = RandomEdgeGraph.createGraph();
+    }
+
+    public GraphGenerator(Map<Integer, List<Integer>> adj) {
+        this.adj = adj;
     }
 
     public Map<Integer, List<Integer>> getAdj() {

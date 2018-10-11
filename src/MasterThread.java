@@ -103,7 +103,7 @@ public class MasterThread extends Thread {
     synchronized public void waitForAllWorkersCompletion() throws InterruptedException {
         while (true) {
             handleMessage();
-            if (hasCurrentRoundTerminated() || haveAllThreadsTerminated()) {
+            if (hasCurrentRoundTerminated()) {
                 System.out.println("All the workers have terminated or round has terminated");
                 break;
             }

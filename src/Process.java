@@ -123,7 +123,6 @@ public class Process extends Thread {
                 return;
             }
             else if (msg.getType().equals(MessageType.KILL)) {
-                //this.interrupt();break;
                 selfKill = true;
                 break;
             }
