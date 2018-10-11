@@ -3,10 +3,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Generates a bi-directional graph with vertices having unique IDs (integers, for simplicity).
+ */
+// TODO: read from input file, input file first line: number of nodes in vertex, second line comma separated uids
+    // third line onwards adjacency matrix
 public class GraphGenerator {
-    /**
-     * Generates a bi-directional graph with vertices having unique IDs (integers, for simplicity).
-     */
+
     private Map<Integer, List<Integer>> adj = new HashMap<>();
 
 //    private int diameter = 3;

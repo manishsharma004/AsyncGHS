@@ -7,13 +7,13 @@ import java.util.concurrent.LinkedBlockingDeque;
  * The master thread is responsible for spawning and synchronizing the worker threads.
  */
 public class MasterThread extends Thread {
-
+    // states
     int id;
-    BlockingQueue<Message> queue = new LinkedBlockingDeque<>();
-    Process[] workers;
     int numWorkers = 0;
     int round = 0;
+    Process[] workers;
     CyclicBarrier barrier;
+    BlockingQueue<Message> queue = new LinkedBlockingDeque<>();
     HashSet<Integer> roundCompletedThreads = new HashSet<>();   // threads that finished current round
     HashSet<Integer> terminatedThreads = new HashSet<Integer>();
     Map<Integer, List<Integer>> graph;

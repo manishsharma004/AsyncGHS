@@ -7,6 +7,14 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.LinkedBlockingDeque;
 
+// TODO: Add logging, no sysout statements at all! take verbosity parameter
+// verbosity = 1, log max id seen
+// verbosity = 2, log messages sent by processes
+// verbosity = 3, log messages sent by processes + received from other processes + status (leader or not), is ready to
+// terminate or not
+
+// TODO: remove synchronized keyword from all functions that don't need it
+
 public class Process extends Thread {
     // states
     int uid;
