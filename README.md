@@ -1,12 +1,6 @@
-# Floodmax Synchronous - How to Run
+# Distributed Computing Projects
 
-1. Unzip the folder and cd to root.
-2. Run the file run.sh, it should compile and show the output with the sample input provided.
+### Project 1
+Leader election using floodmax with convergecast termination for synchronous networks is added as a [release](https://github.com/Sharayu2554/FloodMax-DistributedComputing/releases/tag/project1).
 
-To run with custom input file, use the command below:
-java src/MainDriver <number_of_processes> --path <path_to_file>
-
-Format of input file:
-First line should have UNIQUE, integer ids for processes separated by a tab (\t).
-The next line should be blank.
-The next <number_of_processes> line should have adjacent matrix separated by tabs. The order of elements correspond to the order of the unique ids provided.
+**Note:** The project is now a maven project. Re-import the project in IntelliJ Idea to update your workspace.

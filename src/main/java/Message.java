@@ -14,28 +14,12 @@ public class Message {
         this.type = type;
     }
 
-    public Integer getSender() {
-        return sender;
-    }
-
-    public void setSender(Integer sender) {
-        this.sender = sender;
-    }
-
     public Integer getMaxId() {
         return maxId;
     }
 
-    public void setMaxId(Integer maxId) {
-        this.maxId = maxId;
-    }
-
     public MessageType getType() {
         return type;
-    }
-
-    public void setType(MessageType type) {
-        this.type = type;
     }
 
     @Override

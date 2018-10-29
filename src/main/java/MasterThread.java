@@ -1,3 +1,5 @@
+import org.apache.log4j.Logger;
+
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CyclicBarrier;
@@ -7,46 +9,39 @@ import java.util.concurrent.LinkedBlockingDeque;
  * The master thread is responsible for spawning and synchronizing the worker threads.
  */
 public class MasterThread extends Thread {
-    // states
-    int id;
-    int numWorkers = 0;
-    int round = 0;
-    Process[] workers;
-    CyclicBarrier barrier;
-    BlockingQueue<Message> queue = new LinkedBlockingDeque<>();
-    HashSet<Integer> roundCompletedThreads = new HashSet<>();   // threads that finished current round
-    HashSet<Integer> terminatedThreads = new HashSet<Integer>();
-    Map<Integer, List<Integer>> graph;
-    Map<Integer, Integer> nodeIdToProcessMap;
-    Map<Integer, HashSet<Integer>> parentToNodeMap;
+    private static Logger log = Logger.getLogger("Master");
 
-    public void setWorkers(Process[] workers) {
-        this.workers = workers;
-    }
+    // states
+    private int numWorkers = 0;
+    private int round = 0;
+    private Process[] workers;
+    private CyclicBarrier barrier;
+    BlockingQueue<Message> queue = new LinkedBlockingDeque<>();
+    private HashSet<Integer> roundCompletedThreads = new HashSet<>();   // threads that finished current round
+    private HashSet<Integer> terminatedThreads = new HashSet<Integer>();
+    private Map<Integer, List<Integer>> graph;
+    private Map<Integer, HashSet<Integer>> parentToNodeMap;
 
     public MasterThread(String name, int id, Map<Integer, List<Integer>> graph) {
         super(name);
-        this.id = id;
         this.graph = graph;
         this.barrier = new CyclicBarrier(this.graph.size());
         this.parentToNodeMap = new HashMap<>();
     }
 
     @Override
-    public synchronized void start() {
+    public void start() {
         super.start();
     }
 
-    private synchronized boolean pushToQueue(Process p, Message m) {
-        return p.queue.add(m);
+    private void pushToQueue(Process p, Message m) {
+        p.queue.add(m);
     }
 
-    synchronized public boolean broadcastMessage(Message msg) {
-
+    private void broadcastMessage(Message msg) {
         for (int i = 0; i < this.numWorkers; i++) {
             pushToQueue(this.workers[i], msg);
         }
-        return true;
     }
 
     /**
@@ -55,7 +50,7 @@ public class MasterThread extends Thread {
      * freed. If it chooses to continue, the master thread awaits messages from all non-terminated threads to give a
      * go-ahead for the next round. When the master receives a terminate signal from all workers, it shuts down.
      */
-    synchronized public void handleMessage() throws InterruptedException {
+    private void handleMessage() throws InterruptedException {
         Message out = queue.take();
         switch (out.getType()) {
             case END_ROUND:
@@ -75,42 +70,38 @@ public class MasterThread extends Thread {
         }
     }
 
-    synchronized public boolean hasCurrentRoundTerminated() {
+    private boolean hasCurrentRoundTerminated() {
         if (this.numWorkers <= this.roundCompletedThreads.size()) {
             this.roundCompletedThreads = new HashSet<Integer>();
-            System.out.println("All workers have finished round " + this.round + ". Starting next round");
+            log.info("All workers have finished round " + this.round + ". Starting next round.");
             return true;
         }
         return false;
     }
 
-    synchronized public boolean haveAllThreadsTerminated() {
-        System.out.println("terminated Threads size : " + this.terminatedThreads.size());
-        if (this.numWorkers <= this.terminatedThreads.size()) {
-            return true;
-        } else {
-            return false;
-        }
+    private boolean haveAllThreadsTerminated() {
+        log.debug("Terminated threads size = " + this.terminatedThreads.size());
+        return this.numWorkers <= this.terminatedThreads.size();
     }
 
-    synchronized public boolean startNewRound() {
+    private boolean startNewRound() {
         this.round += 1;
-        System.out.println("\n\nBroadcast Message to start Round " + this.round);
+        log.info("Broadcast Message to start Round " + this.round);
         this.broadcastMessage(new Message(0, this.round, MessageType.START_ROUND));
         return false;
     }
 
-    synchronized public void waitForAllWorkersCompletion() throws InterruptedException {
+    private void waitForAllWorkersCompletion() throws InterruptedException {
         while (true) {
             handleMessage();
             if (hasCurrentRoundTerminated()) {
-                System.out.println("All the workers have terminated or round has terminated");
+                log.info("All the workers have terminated or round has terminated");
                 break;
             }
         }
     }
 
-    public void spawnWorkers() {
+    private void spawnWorkers() {
         int numProcesses = this.graph.keySet().size();
         Process[] processes = new Process[numProcesses];
 
@@ -118,11 +109,11 @@ public class MasterThread extends Thread {
         Set<Integer> keySet = this.graph.keySet();
         Iterator<Integer> keySetIterator = keySet.iterator();
         int index = 0;
-        this.nodeIdToProcessMap = new HashMap<>();
+        Map<Integer, Integer> nodeIdToProcessMap = new HashMap<>();
         while (keySetIterator.hasNext()) {
             Integer vertexId = keySetIterator.next();
             processes[index] = new Process("thread-" + vertexId, vertexId, barrier);
-            this.nodeIdToProcessMap.put(vertexId, index);
+            nodeIdToProcessMap.put(vertexId, index);
             index += 1;
         }
 
@@ -135,7 +126,7 @@ public class MasterThread extends Thread {
             // get workers that correspond to these neighborProcesses
             List<Process> adjacentProcesses = new ArrayList<>();
             for (Integer neighborVertex : neighborVertexIds) {
-                adjacentProcesses.add(processes[this.nodeIdToProcessMap.get(neighborVertex)]);
+                adjacentProcesses.add(processes[nodeIdToProcessMap.get(neighborVertex)]);
             }
             processes[i].setNeighborProcesses(adjacentProcesses);
             processes[i].setMaster(this);
@@ -153,12 +144,12 @@ public class MasterThread extends Thread {
     /**
      * Prints the final BFS tree as an adjacency list
      */
-    public void printTree() {
-        System.out.println("Leader is " + this.parentToNodeMap.get(-1));
-        System.out.println("Adjacency list: " + this.parentToNodeMap);
+    private void printTree() {
+        log.info("Leader is " + this.parentToNodeMap.get(-1));  // leader is the root of the tree
+        log.info("Adjacency list: " + this.parentToNodeMap);
     }
 
-    public void terminateAllThreads() {
+    private void terminateAllThreads() {
         this.broadcastMessage(new Message(0, MessageType.KILL));
     }
 
@@ -166,7 +157,6 @@ public class MasterThread extends Thread {
     public void run() {
         try {
             spawnWorkers();
-            System.out.println("Workers spawned");
             while (!haveAllThreadsTerminated()) {
                 startNewRound();
                 waitForAllWorkersCompletion();
@@ -174,7 +164,7 @@ public class MasterThread extends Thread {
 
             printTree();
             terminateAllThreads();
-            System.out.println("Terminating " + this.getName());
+            log.debug("Terminating " + this.getName());
         } catch (InterruptedException e) {
         }
     }
