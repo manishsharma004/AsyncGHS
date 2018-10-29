@@ -1,29 +1,53 @@
-import java.util.HashMap;
+import java.io.*;
+import java.util.*;
 
 public class MainDriver {
 
-    public static void main(String args[]){
+    public static Map<Integer, List<Integer>> readInput(Integer noOfNodes, String pathToAdjancencyList) throws IOException  {
+        File file = new File(pathToAdjancencyList);
+        BufferedReader br = new BufferedReader(new FileReader(file));
+        String st;
+        int count = 0;
+        String[] workers  = new String[noOfNodes];
+        String[] neighborList;
+        Map<Integer, List<Integer>> adj = new HashMap<>();
 
-        MasterThread master = new MasterThread("Master", 0);
-//
-//        int numWorkers = 4;
-//        Processes[] workers = new Processes[numWorkers];
-//        for (int i = 0; i < workers.length; i++) {
-//            workers[i] = new Processes(("thread-"+i), i);
-//        }
-//        //assign neighbors to input threads and then start the threads
-//        for(int i = 0; i < workers.length; i++) {
-//            //assigning only two neighbor to the thread 0 has neighbor 1 and 2, 1 has neighbor 2 and 3, 2 has neighbor 3 and 0
-//            // 3 has neighbor 0 and 1
-//            HashMap<Integer, Processes> neighbor = new HashMap<>();
-//            neighbor.put((i+1)%4, workers[(i+1)%4]);
-//            neighbor.put((i+2)%4, workers[(i+2)%4]);
-//            workers[i].assignNeighbors(neighbor, master);
-//        }
+        //Reading Worker Ids
+        if ((st = br.readLine()) != null) {
+            workers = st.split("\\s+");
+            System.out.println(Arrays.toString(workers));
+            st = br.readLine();
+        }
 
-        master.start();
-//        for (int i = 0; i < workers.length; i++) {
-//            workers[i].start();
-//        }
+        //Reading Adjacency Matrix
+        while ((st = br.readLine()) != null){
+            neighborList = st.split("\\s+");
+            List<Integer> neighbors = new ArrayList<>();
+            for (int  i = 0; i < noOfNodes; i++) {
+                if (neighborList[i].equals("1")) {
+                    neighbors.add(Integer.parseInt(workers[i]));
+                }
+            }
+            adj.put(Integer.parseInt(workers[count]), neighbors);
+            count++;
+        }
+
+        System.out.println(adj);
+        return adj;
     }
+
+    public static void main(String args[]) throws IOException {
+
+        if (args.length < 3) {
+            System.out.println("Input should be of format MainDriver __No_Of_Nodes__ --path __Path_To_Input_File__ ");
+            System.exit(-1);
+        }
+
+        int noOfNodes = Integer.parseInt(args[0]);
+        Map<Integer, List<Integer>> adj = readInput(noOfNodes, args[2]);
+        GraphGenerator graph = new GraphGenerator(adj);
+        MasterThread master = new MasterThread("Master of Puppets", 0, graph.getAdj());
+        master.start();
+    }
+
 }

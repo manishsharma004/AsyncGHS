@@ -1,55 +1,49 @@
 public class Message {
     Integer sender;
-    Integer receiver;
-    Integer message;
-    MessageType messageType;
+    Integer maxId;
+    MessageType type;
 
-    public Message(Integer sender, Integer receiver, Integer message, MessageType messageType) {
+    public Message(Integer sender, Integer maxId, MessageType type) {
         this.sender = sender;
-        this.receiver = receiver;
-        this.message = message;
-        this.messageType = messageType;
+        this.maxId = maxId;
+        this.type = type;
+    }
+
+    public Message(Integer sender, MessageType type) {
+        this.sender = sender;
+        this.type = type;
     }
 
     public Integer getSender() {
         return sender;
     }
 
-    private void setSender(Integer sender) {
+    public void setSender(Integer sender) {
         this.sender = sender;
     }
 
-    public Integer getReceiver() {
-        return receiver;
+    public Integer getMaxId() {
+        return maxId;
     }
 
-    private void setReceiver(Integer receiver) {
-        this.receiver = receiver;
+    public void setMaxId(Integer maxId) {
+        this.maxId = maxId;
     }
 
-    public Integer getMessage() {
-        return message;
+    public MessageType getType() {
+        return type;
     }
 
-    private void setMessage(Integer message) {
-        this.message = message;
-    }
-
-    public MessageType getMessageType() {
-        return messageType;
-    }
-
-    private void setMessageType(MessageType messageType) {
-        this.messageType = messageType;
+    public void setType(MessageType type) {
+        this.type = type;
     }
 
     @Override
     public String toString() {
         return "Message{" +
                 "sender=" + sender +
-                ", receiver=" + receiver +
-                ", message='" + message + '\'' +
-                ", messageType='" + messageType + '\'' +
+                ", maxId=" + maxId +
+                ", type=" + type +
                 '}';
     }
 }
