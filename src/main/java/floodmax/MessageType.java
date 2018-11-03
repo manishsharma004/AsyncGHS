@@ -1,3 +1,5 @@
+package floodmax;
+
 public enum MessageType {
     ACK, // positive acknowledgement from a process or accept
     NACK, // negative acknowledgement from a process or reject

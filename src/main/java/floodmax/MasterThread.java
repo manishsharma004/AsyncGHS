@@ -1,3 +1,4 @@
+package floodmax;
 import org.apache.log4j.Logger;
 
 import java.util.*;
@@ -14,7 +15,7 @@ public class MasterThread extends Thread {
     // states
     private int numWorkers = 0;
     private int round = 0;
-    private Process[] workers;
+    private java.lang.Process[] workers;
     private CyclicBarrier barrier;
     BlockingQueue<Message> queue = new LinkedBlockingDeque<>();
     private HashSet<Integer> roundCompletedThreads = new HashSet<>();   // threads that finished current round
@@ -34,7 +35,7 @@ public class MasterThread extends Thread {
         super.start();
     }
 
-    private void pushToQueue(Process p, Message m) {
+    private void pushToQueue(java.lang.Process p, Message m) {
         p.queue.add(m);
     }
 
@@ -103,7 +104,7 @@ public class MasterThread extends Thread {
 
     private void spawnWorkers() {
         int numProcesses = this.graph.keySet().size();
-        Process[] processes = new Process[numProcesses];
+        java.lang.Process[] processes = new java.lang.Process[numProcesses];
 
         // spawn processes
         Set<Integer> keySet = this.graph.keySet();
@@ -112,7 +113,7 @@ public class MasterThread extends Thread {
         Map<Integer, Integer> nodeIdToProcessMap = new HashMap<>();
         while (keySetIterator.hasNext()) {
             Integer vertexId = keySetIterator.next();
-            processes[index] = new Process("thread-" + vertexId, vertexId, barrier);
+            processes[index] = new java.lang.Process("thread-" + vertexId, vertexId, barrier);
             nodeIdToProcessMap.put(vertexId, index);
             index += 1;
         }
@@ -124,7 +125,7 @@ public class MasterThread extends Thread {
             // get neighbours of this vertex
             List<Integer> neighborVertexIds = this.graph.get(vertexId);
             // get workers that correspond to these neighborProcesses
-            List<Process> adjacentProcesses = new ArrayList<>();
+            List<java.lang.Process> adjacentProcesses = new ArrayList<>();
             for (Integer neighborVertex : neighborVertexIds) {
                 adjacentProcesses.add(processes[nodeIdToProcessMap.get(neighborVertex)]);
             }

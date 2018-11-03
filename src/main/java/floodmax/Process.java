@@ -1,3 +1,5 @@
+package floodmax;
+
 import org.apache.log4j.Logger;
 
 import java.util.HashMap;

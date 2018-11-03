@@ -1,3 +1,4 @@
+package floodmax;
 public class Message {
     Integer sender;
     Integer maxId;
