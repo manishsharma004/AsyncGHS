@@ -1,27 +1,54 @@
 package asyncGHS;
 
-import sun.applet.Main;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class GraphGenerator {
     private Map<Integer, List<MainDriver.Process>> adj = new HashMap<>();
 
-//    public GraphGenerator() {
-//        /**
-//         * Generates a graph of provided size using random integers.
-//         */
-////        this.adj.put(1, Arrays.asList(10, 11, 8));
-////        this.adj.put(10, Arrays.asList(1));
-////        this.adj.put(11, Arrays.asList(1, 6, 20));
-////        this.adj.put(6, Arrays.asList(8, 11, 20));
-////        this.adj.put(8, Arrays.asList(1, 15, 6));
-////        this.adj.put(15, Arrays.asList(8));
-////        this.adj.put(20, Arrays.asList(6, 11));
-//    }
+    public GraphGenerator() {
+        /**
+         * Generates a graph of provided size using random integers.
+         */
+        List<MainDriver.Process> list = new ArrayList<>();
+        list.add(new MainDriver.Process(2, (float)1.0));
+        list.add(new MainDriver.Process(6, (float)3.0));
+        this.adj.put(1, list);
+
+        list = new ArrayList<>();
+        list.add(new MainDriver.Process(1, (float)1.0));
+        list.add(new MainDriver.Process(3, (float)3.0));
+        this.adj.put(2, list);
+
+        list = new ArrayList<>();
+        list.add(new MainDriver.Process(2, (float)3.0));
+        list.add(new MainDriver.Process(4, (float)2.0));
+        this.adj.put(3, list);
+
+        list = new ArrayList<>();
+        list.add(new MainDriver.Process(3, (float)2.0));
+        list.add(new MainDriver.Process(5, (float)1.0));
+        list.add(new MainDriver.Process(7, (float)1.0));
+        this.adj.put(4, list);
+
+        list = new ArrayList<>();
+        list.add(new MainDriver.Process(4, (float)1.0));
+        list.add(new MainDriver.Process(6, (float)2.0));
+        list.add(new MainDriver.Process(7, (float)4.0));
+        this.adj.put(5, list);
+
+        list = new ArrayList<>();
+        list.add(new MainDriver.Process(1, (float)3.0));
+        list.add(new MainDriver.Process(5, (float)2.0));
+        list.add(new MainDriver.Process(7, (float)3.0));
+        this.adj.put(6, list);
+
+        list = new ArrayList<>();
+        list.add(new MainDriver.Process(4, (float)1.0));
+        list.add(new MainDriver.Process(5, (float)4.0));
+        list.add(new MainDriver.Process(6, (float)3.0));
+        this.adj.put(7, list);
+
+    }
 
     public GraphGenerator(Map<Integer, List<MainDriver.Process>> adj) {
         this.adj = adj;

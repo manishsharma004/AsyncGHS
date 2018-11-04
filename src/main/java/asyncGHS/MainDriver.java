@@ -78,13 +78,17 @@ public class MainDriver {
     }
 
     public static void main(String[] args) throws IOException {
+        Map<Integer, List<Process>> adj;
+        GraphGenerator graph;
         if (args.length < 1) {
-            System.out.println("Format: java MainDriver <input file path>");
-            System.exit(-1);
+//            System.out.println("Format: java MainDriver <input file path>");
+//            System.exit(-1);
+            graph = new GraphGenerator();
         }
-
-        Map<Integer, List<Process>> adj = readInput(args[0]);
-        GraphGenerator graph = new GraphGenerator(adj);
+        else {
+             adj = readInput(args[0]);
+             graph = new GraphGenerator(adj);
+        }
         graph.printGraph();
     }
 }
