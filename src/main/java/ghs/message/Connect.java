@@ -10,8 +10,8 @@ public class Connect extends Message {
      */
     private Integer level;
 
-    public Connect(Integer sender, Integer level) {
-        super(sender);
+    public Connect(Integer sender, Integer receiver,  Integer level) {
+        super(sender, receiver);
         this.level = level;
     }
 }

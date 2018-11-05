@@ -4,40 +4,35 @@ package asyncGHS;
 import floodmax.MessageType;
 import ghs.message.MasterMessage;
 import ghs.message.Message;
-import ghs.message.Report;
+import ghs.message.Test;
 import org.apache.log4j.Logger;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.*;
+import java.util.concurrent.*;
 
 public class Process extends Thread{
 
     private Logger log = Logger.getLogger(this.getName());
-
+    public static Random random = new Random();
     // states
     private int uid;
     private int round = 0;  // initially round is 0, but everything starts from round 1 (master sends this)
     private int parentId = -1;
-    private boolean isLeader;
-    private boolean isReadyToTerminate = false;
     private boolean selfKill = false;
 
     private CyclicBarrier barrier;
 
-    BlockingQueue<Message> queue = new PriorityBlockingQueue<>(20);
-    BlockingQueue<Message> masterQueue = new LinkedBlockingDeque<>(3);
+    BlockingQueue<Message> inqueue = new PriorityBlockingQueue<>(30, Message::compareTo);
+    BlockingQueue<Message> queue = new PriorityBlockingQueue<>(30, Message::compareTo);
+    BlockingQueue<Message> masterQueue = new LinkedBlockingDeque<>(10);
     private MasterThread master;
+
+    //neighbor and its process
     private Map<Integer, Process> vertexToProcess = new HashMap<>();
+    private Map<Integer, Integer> vertexToDelay = new HashMap<>();
+
 
     private HashSet<NeighborObject> neighbors = new HashSet<>();
-    private HashSet<Integer> children = new HashSet<>();
-    private HashSet<Integer> others = new HashSet<>();  // should not include parent
-    private HashSet<Integer> terminatedNeighbors = new HashSet<>();
 
     public Process(String name, int uid, CyclicBarrier barrier) {
         super(name);
@@ -57,6 +52,7 @@ public class Process extends Thread{
         for (NeighborObject p : neighborProcesses.keySet()) {
             neighbors.add(p);
             vertexToProcess.put(p.getId(), neighborProcesses.get(p));
+            vertexToDelay.put(p.getId(), 0);
         }
     }
 
@@ -65,7 +61,6 @@ public class Process extends Thread{
             MasterMessage msg = ((MasterMessage) masterQueue.take());
             if (msg.getType().equals(MessageType.START_ROUND)) {
                 if (msg.getMsg() > round) {
-                    log.info("received " + msg);
                     round = msg.getMsg();
                 } else {
                     // This should never happen
@@ -79,6 +74,26 @@ public class Process extends Thread{
                 masterQueue.add(msg);
             }
         }
+    }
+
+    private Integer getDelay() {
+        return 1 + random.nextInt(19);
+    }
+
+    private void checkInQueue() throws InterruptedException {
+        while (!inqueue.isEmpty() && inqueue.peek().getRound() <= round) {
+            Message m = inqueue.take();
+            pushToQueue(vertexToProcess.get(m.getReceiver()), m);
+        }
+    }
+
+    private void pushToInQueue(Message m)
+    {
+        inqueue.add(m);
+    }
+
+    private int getRound(int receiver) {
+        return vertexToDelay.get(receiver) + getDelay();
     }
 
     private void pushToQueue(Process p, Message m) {
@@ -97,6 +112,36 @@ public class Process extends Thread{
         pushToQueue(master, new MasterMessage(uid, parentId, MessageType.TERMINATE));
     }
 
+    private void sendMessages(HashSet<NeighborObject> neighbors) {
+        for (NeighborObject neighbor : neighbors) {
+            int round = getRound(neighbor.id);
+            Message testMsg = new Test(uid, neighbor.id, round, 0, 1);
+            pushToInQueue(testMsg);
+        }
+    }
+
+    private void message() {
+        // defining messages
+        if (round <= 2) {
+            sendMessages(neighbors);
+        }
+    }
+
+    private void handleMessages() throws InterruptedException {
+        Message msg;
+        while (!queue.isEmpty()) {
+            msg = queue.take();
+            log.info(msg);
+        }
+    }
+
+    private void transition() throws InterruptedException, BrokenBarrierException {
+        barrier.await();    // wait until all threads have sent explore messages
+        checkInQueue();
+        barrier.await();
+        handleMessages();
+    }
+
     @Override
     public void run() {
         try {
@@ -106,10 +151,10 @@ public class Process extends Thread{
                     break;
                 }
 
-                //message();
-                //transition();
+                message();
+                transition();
 
-                if (this.round == 2) {
+                if (round == 30) {
                     sendTerminationToMaster();
                 }
                 else {
@@ -117,7 +162,16 @@ public class Process extends Thread{
                 }
             }
         } catch (InterruptedException e) {
-
+            e.printStackTrace();
+        } catch (BrokenBarrierException e) {
+            e.printStackTrace();
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Process{" +
+                "uid=" + uid +
+                "} " + super.toString();
     }
 }

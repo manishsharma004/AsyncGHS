@@ -21,7 +21,16 @@ public class NeighborObject {
         return weight;
     }
 
-    public void setWeight(Float weight) {
+    public void setWeight(Float weight)
+    {
         this.weight = weight;
+    }
+
+    @Override
+    public String toString() {
+        return "NeighborObject{" +
+                "id=" + id +
+                ", weight=" + weight +
+                '}';
     }
 }

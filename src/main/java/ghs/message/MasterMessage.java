@@ -2,19 +2,21 @@ package ghs.message;
 
 import floodmax.MessageType;
 
-public class MasterMessage extends Message {
+import java.util.Objects;
+
+public class MasterMessage extends Message implements Comparable {
 
     private Integer msg;
     private MessageType type;
 
     public MasterMessage(Integer sender,Integer msg, MessageType type) {
-        super(sender);
+        super(sender, 0);
         this.msg = msg;
         this.type = type;
     }
 
     public MasterMessage(Integer sender, MessageType type) {
-        super(sender);
+        super(sender, 0);
         this.type = type;
     }
 
@@ -41,5 +43,25 @@ public class MasterMessage extends Message {
                 ", msg=" + msg +
                 ", type=" + type +
                 "} ";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+        MasterMessage that = (MasterMessage) o;
+        return Objects.equals(msg, that.msg) &&
+                type == that.type;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), msg, type);
+    }
+
+    @Override
+    public int compareTo(Object o) {
+        return super.compareTo(o);
     }
 }

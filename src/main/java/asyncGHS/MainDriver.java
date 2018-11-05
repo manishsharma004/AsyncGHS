@@ -62,7 +62,7 @@ public class MainDriver {
              adj = readInput(args[0]);
              graph = new GraphGenerator(adj);
         }
-        graph.printGraph();
+//        graph.printGraph();
         MasterThread masterThread = new MasterThread("MASTER", 0, graph.getAdj());
         masterThread.start();
     }

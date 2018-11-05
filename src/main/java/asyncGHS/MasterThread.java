@@ -79,7 +79,7 @@ public class MasterThread extends Thread {
     }
 
     private boolean haveAllThreadsTerminated() {
-        log.debug("Terminated threads size = " + this.terminatedThreads.size());
+//        log.debug("Terminated threads size = " + this.terminatedThreads.size());
         return this.numWorkers <= this.terminatedThreads.size();
     }
 
@@ -98,7 +98,7 @@ public class MasterThread extends Thread {
      */
     private void handleMessage() throws InterruptedException {
         MasterMessage out = queue.take();
-        log.info("Received " + out);
+//        log.info("Received " + out);
         switch (out.getType()) {
             case END_ROUND:
                 this.roundCompletedThreads.add(out.getSender());
@@ -120,7 +120,7 @@ public class MasterThread extends Thread {
     private boolean hasCurrentRoundTerminated() {
         if (this.numWorkers <= this.roundCompletedThreads.size()) {
             this.roundCompletedThreads = new HashSet<Integer>();
-            log.info("All workers have finished round " + this.round + ". Starting next round.");
+//            log.info("All workers have finished round " + this.round + ". Starting next round.");
             return true;
         }
         return false;
@@ -130,7 +130,7 @@ public class MasterThread extends Thread {
         while (true) {
             handleMessage();
             if (hasCurrentRoundTerminated()) {
-                log.info("All the workers have terminated or round has terminated");
+//                log.info("All the workers have terminated or round has terminated");
                 break;
             }
         }

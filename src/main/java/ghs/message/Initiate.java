@@ -20,8 +20,8 @@ public class Initiate extends Message {
      */
     private Integer leader;
 
-    public Initiate(Integer sender, Integer level, Integer coreEdgeWeight, Integer leader) {
-        super(sender);
+    public Initiate(Integer sender,  Integer receiver, Integer level, Integer coreEdgeWeight, Integer leader) {
+        super(sender, receiver);
         this.level = level;
         this.coreEdgeWeight = coreEdgeWeight;
         this.leader = leader;

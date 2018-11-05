@@ -17,8 +17,8 @@ public class Report extends Message {
      */
     private LinkedList<Integer> pathToMWOE;
 
-    public Report(Integer sender, Integer mwoeWeight) {
-        super(sender);
+    public Report(Integer sender, Integer receiver,  Integer mwoeWeight) {
+        super(sender, receiver);
         this.mwoeWeight = mwoeWeight;
         this.pathToMWOE = new LinkedList<>();
     }

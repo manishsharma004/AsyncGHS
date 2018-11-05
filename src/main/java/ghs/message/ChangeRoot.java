@@ -10,8 +10,9 @@ public class ChangeRoot extends Message {
      */
     private Integer newLeader;
 
-    public ChangeRoot(Integer sender, Integer newLeader) {
-        super(sender);
+    public ChangeRoot(Integer sender, Integer receiver, Integer newLeader) {
+        super(sender, receiver);
         this.newLeader = newLeader;
     }
+
 }

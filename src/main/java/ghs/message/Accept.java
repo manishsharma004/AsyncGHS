@@ -9,8 +9,8 @@ public class Accept extends Message {
      */
     private Integer level;
 
-    public Accept(Integer sender, Integer level) {
-        super(sender);
+    public Accept(Integer sender, Integer receiver,  Integer level) {
+        super(sender, receiver);
         this.level = level;
     }
 }
