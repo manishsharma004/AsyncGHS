@@ -4,6 +4,7 @@ package asyncGHS;
 import floodmax.MessageType;
 import ghs.message.MasterMessage;
 import ghs.message.Message;
+import ghs.message.Report;
 import ghs.message.Test;
 import org.apache.log4j.Logger;
 
@@ -93,7 +94,10 @@ public class Process extends Thread{
     }
 
     private int getRound(int receiver) {
-        return vertexToDelay.get(receiver) + getDelay();
+        int prevDelay = vertexToDelay.get(receiver);
+        int finalDelay = prevDelay + getDelay();
+        vertexToDelay.put(receiver, finalDelay);
+        return finalDelay;
     }
 
     private void pushToQueue(Process p, Message m) {
@@ -117,12 +121,15 @@ public class Process extends Thread{
             int round = getRound(neighbor.id);
             Message testMsg = new Test(uid, neighbor.id, round, 0, 1);
             pushToInQueue(testMsg);
+//            round = getRound(neighbor.id);
+//            Message reportmsg = new Report(uid, neighbor.id, round, 0);
+//            pushToInQueue(reportmsg);
         }
     }
 
     private void message() {
         // defining messages
-        if (round <= 2) {
+        if (round <= 3) {
             sendMessages(neighbors);
         }
     }
@@ -154,7 +161,7 @@ public class Process extends Thread{
                 message();
                 transition();
 
-                if (round == 30) {
+                if (round == 70) {
                     sendTerminationToMaster();
                 }
                 else {
