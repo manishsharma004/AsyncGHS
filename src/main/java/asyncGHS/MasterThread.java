@@ -53,7 +53,7 @@ public class MasterThread extends Thread {
             // get workers that correspond to these neighborProcesses
             HashMap<NeighborObject, Process> adjacentProcesses = new HashMap<>();
             for (NeighborObject neighborObject : neighbors) {
-                adjacentProcesses.put(neighborObject, processes[nodeIdToProcessMap.get(vertexId)]);
+                adjacentProcesses.put(neighborObject, processes[nodeIdToProcessMap.get(neighborObject.getId())]);
             }
             processes[i].setNeighborProcesses(adjacentProcesses);
             processes[i].setMaster(this);
