@@ -13,6 +13,7 @@ public class Process extends Thread {
 
     public Random random = new Random();
     public BlockingQueue<Message> queue = new PriorityBlockingQueue<>(30, Message::compareTo);
+    public int leaderId;  // leader of the current component
     BlockingQueue<Message> masterQueue = new LinkedBlockingDeque<>(10);
     private Logger log = Logger.getLogger(this.getName());
     // states
@@ -22,7 +23,6 @@ public class Process extends Thread {
     // for async broadcast convergecast
     private int parentId = -1;  // my parent in the current spanning tree component
     private int level = 0;  // level of current component I am in
-    private int leaderId;  // leader of the current component
     private int mwoeSender;    // who sent the mwoe
     private Edge coreEdge = null;
     private Edge mwoe = null;   // the mwoe I have seen so far
@@ -39,8 +39,8 @@ public class Process extends Thread {
     private SortedSet<Edge> basicEdges = new TreeSet<>();
     private PriorityQueue<Edge> edgesToTest = new PriorityQueue<>();  // initially, all basic edges
     private SortedSet<Edge> branchEdges = new TreeSet<>();
-    private SortedSet<Edge> acceptedEdges = new TreeSet<>();
     private SortedSet<Edge> rejectedEdges = new TreeSet<>();
+    private Queue<Connect> pendingConnects = new LinkedList<>();
 
     private Map<Integer, Process> vertexToProcess = new HashMap<>();
     private Map<Integer, Integer> vertexToDelay = new HashMap<>();
@@ -239,7 +239,7 @@ public class Process extends Thread {
      */
     private void wakeUp() {
         Initiate msg = new Initiate(this.uid, this.uid, this.level, null, this.uid);
-        msg.setRound(0);    // initially
+        msg.setRound(this.round);    // initially
         log.debug("Sent WAKE UP " + msg);
         queue.add(msg);
     }
@@ -248,19 +248,22 @@ public class Process extends Thread {
         // broadcast along branch edges
         Initiate initiateMsg = new Initiate(this.uid, -1, this.level, this.coreEdge, this.leaderId);
         if (!this.branchEdges.isEmpty()) {
-            log.debug("Broadcasting INITIATE along branch edges: " + this.branchEdges);
+//            log.debug("Broadcasting INITIATE along branch edges: " + this.branchEdges);
             sendMessages(initiateMsg, this.branchEdges);
             // children
             for (Edge e : this.branchEdges) {
-                this.children.add(e.other(this.uid));
+                int neighborId = e.other(this.uid);
+                if (neighborId != parentId) {
+                    this.children.add(neighborId);
+                }
             }
-            log.debug("Children=" + children + ", parent=" + parentId);
+//            log.debug("Children=" + children + ", parent=" + parentId);
         }
     }
 
     private void testBasicEdge() {
         // send test message along minimum weight basic edge
-        log.debug("Edges to test: " + this.edgesToTest);
+//        log.debug("Edges to test: " + this.edgesToTest);
         Edge minWeightBasicEdge = this.edgesToTest.poll();
         Test testMsg = new Test(this.uid, -1, this.coreEdge, this.level);
         sendMessage(testMsg, minWeightBasicEdge);
@@ -271,7 +274,7 @@ public class Process extends Thread {
     }
 
     private void updateMWOE(Report reportMsg) {
-        if (reportMsg.getMwoe().compareTo(this.mwoe) < 0) { // found better mwoe
+        if (this.mwoe == null || reportMsg.getMwoe().compareTo(this.mwoe) < 0) { // found better mwoe
             this.mwoe = reportMsg.getMwoe();
             this.mwoeSender = reportMsg.getSender();
         }
@@ -293,12 +296,44 @@ public class Process extends Thread {
 
     private void sendTestReply(Test testMsg) {
         // TODO: below check is tricky, initially core edge is null
-        if (this.coreEdge == null || !this.coreEdge.equals(testMsg.getCoreEdge())) {
+        boolean inDifferentComponents = this.coreEdge == null || !this.coreEdge.equals(testMsg.getCoreEdge());
+        if (inDifferentComponents && this.level >= testMsg.getLevel()) {
             Accept acceptMsg = new Accept(this.level);
             sendMessage(acceptMsg, testMsg.getSender());
-        } else {
+        } else if (!inDifferentComponents) {
             Reject rejectMsg = new Reject();
             sendMessage(rejectMsg, testMsg.getSender());
+        } else {
+            log.debug("Defer, my level=" + this.level + ", for " + testMsg);
+        }
+    }
+
+    private void mergeOrAbsorb(Connect connect) {
+        if (this.level == connect.getLevel() && connect.getMwoe().equals(this.mwoe)) {
+            // find new leader, larger of two ids adjacent to mwoe
+            this.leaderId = this.uid > connect.getSender() ? this.uid : connect.getSender();
+            this.branchEdges.add(this.mwoe);
+            this.basicEdges.remove(this.mwoe);
+            this.coreEdge = this.mwoe;
+            this.level += 1;
+            log.info("Merge with component " + vertexToProcess.get(connect.getSender()).leaderId +
+                    ", vertex=" + connect.getSender() +
+                    ", new leader=" + leaderId + ", new level=" + this.level);
+            if (this.uid == this.leaderId) {
+                wakeUp();
+            }
+        } else if (this.level > connect.getLevel()) {
+            log.info("Absorb " + connect.getSender());
+            // absorb this component
+            Edge mwoeOther = connect.getMwoe();
+            this.branchEdges.add(mwoeOther);
+            this.basicEdges.remove(mwoeOther);
+            // does not update core edge or level
+            broadcast();
+        } else {
+            // TODO: how to deal with these?
+            pendingConnects.add(connect);
+            log.error("Added to pending queue: " + connect);
         }
     }
 
@@ -311,32 +346,37 @@ public class Process extends Thread {
             }
             if (msg instanceof Initiate) {
                 Initiate initiateMsg = ((Initiate) msg);
-                log.debug("Received " + initiateMsg);
+                this.mwoe = null;   // initiate means finding new mwoe, so we reset
                 // if received initiate from self don't update parent
                 if (parentId == -1 && initiateMsg.getSender() != this.uid) {   // if parent not set
                     parentId = initiateMsg.getSender();
                     level = initiateMsg.getLevel();
                     leaderId = initiateMsg.getLeader();
                 }
+                log.debug("Received " + initiateMsg +
+                        ", parent=" + parentId +
+                        ", level=" + level +
+                        ", leader=" + leaderId);
                 // broadcast initiate to all processes in component, i.e. along branch edges
                 this.edgesToTest.clear();
                 this.edgesToTest.addAll(this.basicEdges);
-                this.acceptedEdges = new TreeSet<>();   // because will start new test-accept-reject protocol
                 broadcast();
                 testBasicEdge();
 //                log.debug("Children=" + children + ", parent=" + parentId);
             } else if (msg instanceof Test) {
                 Test testMsg = ((Test) msg);
-                if (this.level >= testMsg.getLevel()) {
-                    sendTestReply(testMsg);
-                } else {
-                    this.deferQueue.add(testMsg);
-                    log.debug("Deferred reply");
-                }
+                sendTestReply(testMsg);
             } else if (msg instanceof Accept) {
                 Accept acceptMsg = ((Accept) msg);
-                log.debug("Received " + acceptMsg);
-                this.acceptedEdges.add(getEdge(msg.getSender()));
+                Edge e = getEdge(msg.getSender());
+//                log.debug("Received " + acceptMsg);
+                if (this.mwoe == null) {
+                    this.mwoe = e;
+                } else {
+                    if (this.mwoe.compareTo(e) > 0) {
+                        this.mwoe = e;
+                    }
+                }
                 if (this.children.isEmpty()) {
                     // update mwoe
                     this.mwoe = getEdge(msg.getSender());
@@ -358,8 +398,10 @@ public class Process extends Thread {
             } else if (msg instanceof ChangeRoot) { // note current leader can't receive a changeroot message
                 // check if my id is adjacent to mwoe
                 ChangeRoot crMsg = ((ChangeRoot) msg);
-                log.debug("Received " + crMsg);
+//                log.debug("Received " + crMsg);
                 this.mwoe = crMsg.getMwoe();    // update the mwoe of my component
+                this.branchEdges.add(this.mwoe);
+                this.basicEdges.remove(this.mwoe);
                 int u = this.mwoe.either();
                 int v = this.mwoe.other(u);
                 if (u == this.uid || v == this.uid) {   // I am the process adjacent to mwoe
@@ -372,29 +414,7 @@ public class Process extends Thread {
                 }
             } else if (msg instanceof Connect) {
                 Connect connectMsg = ((Connect) msg);
-                log.debug("Received " + connectMsg);
-                // common mwoe and same level, we merge
-                if (this.level == connectMsg.getLevel() && this.mwoe.equals(connectMsg.getMwoe())) {
-                    // find new leader, larger of two ids adjacent to mwoe
-                    this.leaderId = this.uid > connectMsg.getSender() ? this.uid : connectMsg.getSender();
-                    this.branchEdges.add(this.mwoe);
-                    this.basicEdges.remove(this.mwoe);
-                    this.coreEdge = this.mwoe;
-                    this.level += 1;
-                    log.info("Merge with " + connectMsg.getSender() + ", new leader=" + leaderId + ", level=" + this.level);
-                    if (this.uid == this.leaderId) {
-                        broadcast();
-                    }
-                } else if (this.level > connectMsg.getLevel()) {
-                    // absorb this component
-                    Edge mwoeOther = connectMsg.getMwoe();
-                    this.branchEdges.add(mwoeOther);
-                    this.basicEdges.remove(mwoeOther);
-                    // does not update core edge or level
-                    broadcast();
-                } else {
-                    log.error("Connect error: level=" + this.level + ", connectMsg=" + connectMsg);
-                }
+                mergeOrAbsorb(connectMsg);
             }
         }
     }
@@ -412,34 +432,26 @@ public class Process extends Thread {
         try {
             wakeUp();
             while (true) {
-                // TODO: remove synchronization with master
-//                waitUntilMasterStartsNewRound();
+                // TODO: how to initialize selfKill
                 if (selfKill) {
                     break;
                 }
 
                 transition();
 
-                this.round++;
-
-                // TODO: how to terminate - no basic edges?
-                if (round == 700) {
+                if (this.basicEdges.isEmpty()) {
+                    log.info("Branch edges: " + branchEdges);
                     sendTerminationToMaster();
-                    log.info("Terminating...");
+                    selfKill = true;
                     break;
                 }
+
+                this.round++;
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (BrokenBarrierException e) {
             e.printStackTrace();
         }
-    }
-
-    @Override
-    public String toString() {
-        return "Process{" +
-                "uid=" + uid +
-                "} " + super.toString();
     }
 }
