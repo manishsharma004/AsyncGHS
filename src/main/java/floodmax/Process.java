@@ -12,8 +12,9 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.LinkedBlockingDeque;
 
 public class Process extends Thread {
+    // each neighbor will send at most two messages
+    BlockingQueue<Message> queue = new LinkedBlockingDeque<>(20);
     private Logger log = Logger.getLogger(this.getName());
-
     // states
     private int uid;
     private int maxIdSeen;
@@ -22,11 +23,7 @@ public class Process extends Thread {
     private boolean isLeader;
     private boolean isReadyToTerminate = false;
     private boolean selfKill = false;
-
     private CyclicBarrier barrier;
-
-    // each neighbor will send at most two messages
-    BlockingQueue<Message> queue = new LinkedBlockingDeque<>(20);
     private MasterThread master;
     private Map<Integer, Process> vertexToProcess = new HashMap<>();
 

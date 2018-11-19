@@ -9,7 +9,7 @@ public class MasterMessage extends Message implements Comparable {
     private Integer msg;
     private MessageType type;
 
-    public MasterMessage(Integer sender,Integer msg, MessageType type) {
+    public MasterMessage(Integer sender, Integer msg, MessageType type) {
         super(sender, 0);
         this.msg = msg;
         this.type = type;

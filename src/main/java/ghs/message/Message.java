@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * Represents the format of a message to be sent in the network.
  */
-public abstract class Message implements Comparable  {
+public abstract class Message implements Comparable {
     /**
      * ID of the sender process
      */
@@ -13,10 +13,12 @@ public abstract class Message implements Comparable  {
     private Integer receiver;
     private Integer round;
 
-    public Message(Integer sender, Integer receiver, Integer round) {
+    public Message() {
+        // setting sender and receiver responsiblity of the message generator
+    }
+
+    public Message(Integer sender) {
         this.sender = sender;
-        this.receiver = receiver;
-        this.round = round;
     }
 
     public Message(Integer sender, Integer receiver) {
@@ -71,8 +73,8 @@ public abstract class Message implements Comparable  {
 
     @Override
     public String toString() {
-        return "sender=" + sender +
-                ", receiver=" + receiver +
-                ", round=" + round ;
+        return this.getSender() +
+                " ===> " + this.getReceiver() +
+                ", round=" + round;
     }
 }

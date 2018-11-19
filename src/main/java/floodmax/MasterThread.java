@@ -1,4 +1,5 @@
 package floodmax;
+
 import org.apache.log4j.Logger;
 
 import java.util.*;
@@ -11,13 +12,12 @@ import java.util.concurrent.LinkedBlockingDeque;
  */
 public class MasterThread extends Thread {
     private static Logger log = Logger.getLogger("Master");
-
+    BlockingQueue<Message> queue = new LinkedBlockingDeque<>();
     // states
     private int numWorkers = 0;
     private int round = 0;
     private Process[] workers;
     private CyclicBarrier barrier;
-    BlockingQueue<Message> queue = new LinkedBlockingDeque<>();
     private HashSet<Integer> roundCompletedThreads = new HashSet<>();   // threads that finished current round
     private HashSet<Integer> terminatedThreads = new HashSet<Integer>();
     private Map<Integer, List<Integer>> graph;

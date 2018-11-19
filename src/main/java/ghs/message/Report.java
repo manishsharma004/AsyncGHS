@@ -1,6 +1,7 @@
 package ghs.message;
 
-import java.util.LinkedList;
+import edu.princeton.cs.algs4.Edge;
+
 import java.util.Objects;
 
 /**
@@ -10,28 +11,14 @@ public class Report extends Message implements Comparable {
     /**
      * Weight of the mwoe
      */
-    private Integer mwoeWeight;
+    private Edge mwoe;
 
-    /**
-     * Path to the process in the component adjacent to mwoe, first element should be the leader and the last should be
-     * the process adjacent to the mwoe.
-     */
-    private LinkedList<Integer> pathToMWOE;
-
-    public Report(Integer sender, Integer receiver, Integer round, Integer mwoeWeight) {
-        super(sender, receiver, round);
-        this.mwoeWeight = mwoeWeight;
-        this.pathToMWOE = new LinkedList<>();
+    public Report(Edge mwoe) {
+        this.mwoe = mwoe;
     }
 
-    /**
-     * Updates the path to MWOE so that the leader can back-track it.
-     *
-     * @param pid id of the process that sent the mwoe
-     */
-    public void updatePath(Integer pid)
-    {
-        this.pathToMWOE.addFirst(pid);
+    public Edge getMwoe() {
+        return mwoe;
     }
 
     @Override
@@ -40,17 +27,25 @@ public class Report extends Message implements Comparable {
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
         Report report = (Report) o;
-        return Objects.equals(mwoeWeight, report.mwoeWeight) &&
-                Objects.equals(pathToMWOE, report.pathToMWOE);
+        return Objects.equals(mwoe, report.mwoe);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), mwoeWeight, pathToMWOE);
+        return Objects.hash(super.hashCode(), mwoe);
     }
 
     @Override
     public int compareTo(Object o) {
         return super.compareTo(o);
+    }
+
+    @Override
+    public String toString() {
+        return "Report{" +
+                this.getSender() +
+                " ===> " + this.getReceiver() +
+                ", mwoe=" + mwoe +
+                '}';
     }
 }

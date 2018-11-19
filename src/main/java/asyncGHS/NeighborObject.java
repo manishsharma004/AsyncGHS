@@ -21,8 +21,7 @@ public class NeighborObject {
         return weight;
     }
 
-    public void setWeight(Float weight)
-    {
+    public void setWeight(Float weight) {
         this.weight = weight;
     }
 

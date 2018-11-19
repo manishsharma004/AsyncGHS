@@ -1,6 +1,6 @@
 package ghs.message;
 
-import java.util.Objects;
+import edu.princeton.cs.algs4.Edge;
 
 /**
  * Represents a test message a process sends to its neighbor. This is part of the procedure in which the current process
@@ -10,25 +10,26 @@ public class Test extends Message implements Comparable {
     /**
      * Weight of the core edge of the sender's component
      */
-    private Integer coreEdgeWeight;
+    Edge coreEdge;
 
     /**
      * Level of the sender
      */
     private Integer level;
 
-    public Test(Integer sender, Integer receiver,  Integer round, Integer coreEdgeWeight, Integer level) {
-        super(sender, receiver, round);
-        this.coreEdgeWeight = coreEdgeWeight;
-        this.level = level;
-    }
-
-    public Test(Integer sender, Integer receiver, Integer coreEdgeWeight, Integer level) {
+    public Test(Integer sender, Integer receiver, Edge coreEdge, Integer level) {
         super(sender, receiver);
-        this.coreEdgeWeight = coreEdgeWeight;
+        this.coreEdge = coreEdge;
         this.level = level;
     }
 
+    public Integer getLevel() {
+        return level;
+    }
+
+    public Edge getCoreEdge() {
+        return coreEdge;
+    }
 
     @Override
     public int compareTo(Object o) {
@@ -37,9 +38,11 @@ public class Test extends Message implements Comparable {
 
     @Override
     public String toString() {
-        return "Test{" + super.toString() +
-                ", coreEdgeWeight=" + coreEdgeWeight +
+        return "Test{" +
+                this.getSender() +
+                " ===> " + this.getReceiver() +
+                ", coreEdge=" + coreEdge +
                 ", level=" + level +
-                "} " ;
+                '}';
     }
 }

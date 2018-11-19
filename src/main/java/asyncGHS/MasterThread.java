@@ -1,62 +1,58 @@
 package asyncGHS;
 
+import edu.princeton.cs.algs4.Edge;
+import edu.princeton.cs.algs4.EdgeWeightedGraph;
 import floodmax.MessageType;
 import ghs.message.MasterMessage;
 import ghs.message.Message;
 import org.apache.log4j.Logger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.LinkedBlockingDeque;
 
 public class MasterThread extends Thread {
     private static Logger log = Logger.getLogger("Master");
-
+    public BlockingQueue<MasterMessage> queue = new LinkedBlockingDeque<>();
     private int numWorkers = 0;
     private int round = 0;
     private Process[] workers;
     private CyclicBarrier barrier;
-    BlockingQueue<MasterMessage> queue = new LinkedBlockingDeque<>();
     private HashSet<Integer> roundCompletedThreads = new HashSet<>();   // threads that finished current round
     private HashSet<Integer> terminatedThreads = new HashSet<Integer>();
-    private Map<Integer, List<NeighborObject>> graph;
-    private Map<Integer, HashSet<Integer>> parentToNodeMap;
+    private EdgeWeightedGraph graph;
 
-    public MasterThread(String name, int id, Map<Integer, List<NeighborObject>> graph) {
+    public MasterThread(String name, EdgeWeightedGraph graph) {
         super(name);
         this.graph = graph;
-        this.barrier = new CyclicBarrier(this.graph.size());
-        this.parentToNodeMap = new HashMap<>();
+        this.barrier = new CyclicBarrier(this.graph.V());
     }
 
     private void spawnWorkers() {
-        int numProcesses = this.graph.keySet().size();
+        int numProcesses = this.graph.V();
         Process[] processes = new Process[numProcesses];
 
-        // spawn processes
-        //NodeIdProcessMap<Key, Value> : process Key is stored in value location of Processes Array
-        int index = 0;
-        Map<Integer, Integer> nodeIdToProcessMap = new HashMap<>();
-        for (Integer vertexId : this.graph.keySet()) {
-            processes[index] = new Process("thread-" + vertexId, vertexId, barrier);
-            nodeIdToProcessMap.put(vertexId, index);
-            index += 1;
+        // spawn processes, the vertices in the graph are named 0 to V-1
+        for (int i = 0; i < numProcesses; i++) {
+            List<Edge> edges = new ArrayList<>();
+            for (Edge e : this.graph.adj(i)) {
+                edges.add(e);
+            }
+            processes[i] = new Process("thread-" + i, i, edges, this.barrier);
+            processes[i].setMaster(this);
         }
 
-        // assign neighbours
-        for (int i = 0; i < processes.length; i++) {
-            // get vertex id of i-th worker
-            Integer vertexId = processes[i].getUid();
-            // get neighbours of this vertex
-            List<NeighborObject> neighbors = this.graph.get(vertexId);
-            // get workers that correspond to these neighborProcesses
-            HashMap<NeighborObject, Process> adjacentProcesses = new HashMap<>();
-            for (NeighborObject neighborObject : neighbors) {
-                adjacentProcesses.put(neighborObject, processes[nodeIdToProcessMap.get(neighborObject.getId())]);
+        // assign neighbor Processes
+        for (int i = 0; i < numProcesses; i++) {
+            List<Process> neighbors = new ArrayList<>();
+            for (Edge e : this.graph.adj(i)) {
+                int neighborId = e.other(i);    // vertex at the other end of the edge
+                neighbors.add(processes[neighborId]);
             }
-            processes[i].setNeighborProcesses(adjacentProcesses);
-            processes[i].setMaster(this);
+            processes[i].setNeighborProcesses(neighbors);
         }
 
         // start all workers
@@ -107,9 +103,6 @@ public class MasterThread extends Thread {
             case TERMINATE:
                 this.terminatedThreads.add(out.getSender());
                 this.roundCompletedThreads.add(out.getSender());
-                HashSet<Integer> adj = parentToNodeMap.getOrDefault(out.getMsg(), new HashSet<>());
-                adj.add(out.getSender());
-                parentToNodeMap.put(out.getMsg(), adj);
                 break;
 
             default:
@@ -147,19 +140,17 @@ public class MasterThread extends Thread {
 
     @Override
     public void run() {
-
         try {
             spawnWorkers();
-            System.out.println("child threads started");
-            //trying to terminate after round 2
+            log.info("Workers spawned.");
+            // trying to terminate after round 2
             while (!haveAllThreadsTerminated()) {
                 startNewRound();
                 waitForAllWorkersCompletion();
             }
             terminateAllThreads();
             log.debug("Terminating " + this.getName());
-        }
-        catch(InterruptedException e) {
+        } catch (InterruptedException e) {
 
         }
     }

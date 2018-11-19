@@ -1,18 +1,28 @@
 package ghs.message;
 
+import edu.princeton.cs.algs4.Edge;
+
 /**
  * A changeroot message is sent from the leader of the component toward the component process that is adjacent to the
- * component's mwoe, aftet the mwoe has been determined.
+ * component's mwoe, after the mwoe has been determined.
  */
 public class ChangeRoot extends Message {
-    /**
-     * ID of the process adjacent to the mwoe, i.e. the potential new leader of the combined component.
-     */
-    private Integer newLeader;
+    private Edge mwoe;
 
-    public ChangeRoot(Integer sender, Integer receiver, Integer newLeader) {
-        super(sender, receiver);
-        this.newLeader = newLeader;
+    public ChangeRoot(Edge mwoe) {
+        this.mwoe = mwoe;
     }
 
+    public Edge getMwoe() {
+        return mwoe;
+    }
+
+    @Override
+    public String toString() {
+        return "ChangeRoot{" +
+                this.getSender() +
+                " ===> " + this.getReceiver() +
+                ", mwoe=" + mwoe +
+                '}';
+    }
 }
