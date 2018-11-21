@@ -3,8 +3,8 @@ package ghs.message;
 import edu.princeton.cs.algs4.Edge;
 
 /**
- * A changeroot message is sent from the leader of the component toward the component process that is adjacent to the
- * component's mwoe, after the mwoe has been determined.
+ * A {@code ChangeRoot} message is sent from the leader of the component toward the component process that is adjacent
+ * to the component's mwoe, after the mwoe has been determined.
  */
 public class ChangeRoot extends Message {
     private Edge mwoe;

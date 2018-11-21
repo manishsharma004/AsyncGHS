@@ -9,19 +9,8 @@ import java.util.Objects;
  * searching for the MWOE.
  */
 public class Initiate extends Message {
-    /**
-     * Level of the sender's component
-     */
     private Integer level;
-
-    /**
-     * Core edge weight of the sender's component
-     */
     private Edge coreEdge;
-
-    /**
-     * ID of leader of sender's component
-     */
     private Integer leader;
 
     public Initiate(Integer sender, Integer receiver, Integer level, Edge coreEdge, Integer leader) {

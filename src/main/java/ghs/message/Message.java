@@ -3,18 +3,15 @@ package ghs.message;
 import java.util.Objects;
 
 /**
- * Represents the format of a message to be sent in the network.
+ * Represents the format of a {@code Message} to be sent in the network.
  */
 public abstract class Message implements Comparable {
-    /**
-     * ID of the sender process
-     */
     private Integer sender;
     private Integer receiver;
     private Integer round;
 
     public Message() {
-        // setting sender and receiver responsiblity of the message generator
+        // setting sender and receiver responsibility of the message generator
     }
 
     public Message(Integer sender) {

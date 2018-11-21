@@ -1,36 +1,53 @@
-package asyncGHS;
+package ghs.mst;
 
 import edu.princeton.cs.algs4.Edge;
 import edu.princeton.cs.algs4.EdgeWeightedGraph;
-import floodmax.MessageType;
-import ghs.message.MasterMessage;
+import ghs.message.Exit;
 import ghs.message.Message;
 import org.apache.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.LinkedBlockingDeque;
 
+/**
+ * The {@code MasterThread} represents the daemon process that spawns and terminates workers, and prints info
+ * about the minimum spanning tree before exiting.
+ */
 public class MasterThread extends Thread {
     private static Logger log = Logger.getLogger("Master");
-    public BlockingQueue<MasterMessage> queue = new LinkedBlockingDeque<>();
+
+    public BlockingQueue<Exit> queue = new LinkedBlockingDeque<>();
     private int numWorkers = 0;
-    private int round = 0;
     private Process[] workers;
     private CyclicBarrier barrier;
-    private HashSet<Integer> roundCompletedThreads = new HashSet<>();   // threads that finished current round
-    private HashSet<Integer> terminatedThreads = new HashSet<Integer>();
-    private EdgeWeightedGraph graph;
+    private Set<Integer> terminatedThreads = new HashSet<Integer>();
 
+    // MST info
+    private EdgeWeightedGraph graph;
+    private Set<Edge> mstEdges = new HashSet<>();
+    private int leaderId;
+    private Edge coreEdge;
+
+    /**
+     * Initializes a new MasterThread.
+     *
+     * @param name  Name of the daemon
+     * @param graph a graph with edge weights
+     */
     public MasterThread(String name, EdgeWeightedGraph graph) {
         super(name);
         this.graph = graph;
         this.barrier = new CyclicBarrier(this.graph.V());
     }
 
+    /**
+     * Spawns workers and assigns neighbors as in the graph.
+     */
     private void spawnWorkers() {
         int numProcesses = this.graph.V();
         Process[] processes = new Process[numProcesses];
@@ -64,77 +81,56 @@ public class MasterThread extends Thread {
         this.numWorkers = numProcesses;
     }
 
+    /**
+     * Helper function to send a {@code Message} to a worker.
+     *
+     * @param p Process instance
+     * @param m Message instance
+     */
     private void pushToQueue(Process p, Message m) {
-        p.masterQueue.add(m);
+        p.queue.add(m);
     }
 
+    /**
+     * Broadcasts a {@code Message} to all workers.
+     *
+     * @param msg Message instance
+     */
     private void broadcastMessage(Message msg) {
         for (int i = 0; i < this.numWorkers; i++) {
             pushToQueue(this.workers[i], msg);
         }
     }
 
+    /**
+     * Checks if all threads are ready to terminate.
+     *
+     * @return true if ready
+     */
     private boolean haveAllThreadsTerminated() {
-//        log.debug("Terminated threads size = " + this.terminatedThreads.size());
         return this.numWorkers <= this.terminatedThreads.size();
     }
 
-    private boolean startNewRound() {
-        this.round += 1;
-        log.info("Broadcast Message to start Round " + this.round);
-        this.broadcastMessage(new MasterMessage(0, this.round, MessageType.START_ROUND));
-        return false;
-    }
-
     /**
-     * Handles maxId received from workers. The workers can either terminate or choose to continue to the next
-     * round. If a worker thread sends a terminate signal to the master, it is terminated and the resources are
-     * freed. If it chooses to continue, the master thread awaits messages from all non-terminated threads to give a
-     * go-ahead for the next round. When the master receives a terminate signal from all workers, it shuts down.
+     * Handles the {@code Exit} message received from worker and updates the MST info.
+     *
+     * @throws InterruptedException
      */
     private void handleMessage() throws InterruptedException {
-        MasterMessage out = queue.take();
-//        log.info("Received " + out);
-        switch (out.getType()) {
-            case END_ROUND:
-                this.roundCompletedThreads.add(out.getSender());
-                break;
-
-            case TERMINATE:
-                this.terminatedThreads.add(out.getSender());
-                this.roundCompletedThreads.add(out.getSender());
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    private boolean hasCurrentRoundTerminated() {
-        if (this.numWorkers <= this.roundCompletedThreads.size()) {
-            this.roundCompletedThreads = new HashSet<Integer>();
-//            log.info("All workers have finished round " + this.round + ". Starting next round.");
-            return true;
-        }
-        return false;
-    }
-
-    private void waitForAllWorkersCompletion() throws InterruptedException {
-        while (true) {
-            handleMessage();
-            if (hasCurrentRoundTerminated()) {
-//                log.info("All the workers have terminated or round has terminated");
-                break;
+        if (!this.queue.isEmpty()) {
+            Exit exitMsg = this.queue.take();
+            if (exitMsg.isLeader()) {
+                this.leaderId = exitMsg.getSender();
             }
+            this.coreEdge = exitMsg.getCoreEdge();
+            this.mstEdges.addAll(exitMsg.getBranchEdges());
+            // the only message master can receive is terminate, along with branch edges
+            this.terminatedThreads.add(exitMsg.getSender());
         }
-    }
-
-    private void terminateAllThreads() {
-        this.broadcastMessage(new MasterMessage(0, MessageType.KILL));
     }
 
     @Override
-    public synchronized void start() {
+    public void start() {
         super.start();
     }
 
@@ -143,15 +139,19 @@ public class MasterThread extends Thread {
         try {
             spawnWorkers();
             log.info("Workers spawned.");
-            // trying to terminate after round 2
             while (!haveAllThreadsTerminated()) {
-                startNewRound();
-                waitForAllWorkersCompletion();
+                // wait for workers to send you EXIT messages
+                handleMessage();
             }
-            terminateAllThreads();
-            log.debug("Terminating " + this.getName());
+            // terminate workers, i.e., broadcast EXIT to all workers (id doesn't matter)
+            // workers exit when they receive this message
+            broadcastMessage(new Exit(-1));
+            // print edges in MST and weight of MST
+            log.info("Final MST edges=" + this.mstEdges +
+                    ", leader=" + this.leaderId +
+                    ", id (core edge)=" + this.coreEdge);
         } catch (InterruptedException e) {
-
+            e.printStackTrace();
         }
     }
 }

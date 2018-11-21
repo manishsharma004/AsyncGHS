@@ -5,12 +5,9 @@ import edu.princeton.cs.algs4.Edge;
 import java.util.Objects;
 
 /**
- * Represents a report message, that convergecasts information about mwoe to the leader.
+ * Represents a {@code Report} message, that convergecasts information about mwoe to the leader.
  */
 public class Report extends Message implements Comparable {
-    /**
-     * Weight of the mwoe
-     */
     private Edge mwoe;
 
     public Report(Edge mwoe) {
