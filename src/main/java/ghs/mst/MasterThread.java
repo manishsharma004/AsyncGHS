@@ -24,7 +24,7 @@ public class MasterThread extends Thread {
     public BlockingQueue<Exit> queue = new LinkedBlockingDeque<>();
     private int numWorkers;
     private Process[] workers;
-    private static CyclicBarrier barrier;
+    private CyclicBarrier barrier;
     private Set<Integer> terminatedThreads = new HashSet<Integer>();
 
     // MST info

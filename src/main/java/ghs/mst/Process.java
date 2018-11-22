@@ -609,7 +609,9 @@ public class Process extends Thread {
             sendMessage(connect, this.mwoe);    // send connect over this edge
             this.connectSent = true;
             // check if connect already sent over that edge
-            processPendingConnects();
+            if (!this.pendingConnects.isEmpty() && this.pendingConnects.peek().getMwoe().equals(this.mwoe)) {
+                processPendingConnects();
+            }
         } else {
             // forward changeroot along the path
             ChangeRoot forwardMsg = new ChangeRoot(this.mwoe);
@@ -668,7 +670,6 @@ public class Process extends Thread {
                 handleChangeroot(crMsg);
             } else if (msg instanceof Connect) {
                 Connect connectMsg = ((Connect) msg);
-                processPendingConnects();
                 mergeOrAbsorb(connectMsg);
             } else if (msg instanceof Exit) {
                 log.debug("Received KILL from " + this.master.getName());
