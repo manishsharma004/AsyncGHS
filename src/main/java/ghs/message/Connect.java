@@ -32,6 +32,7 @@ public class Connect extends Message {
                 " ===> " + this.getReceiver() +
                 ", level=" + level +
                 ", mwoe=" + mwoe +
+                ", round=" + getRound() +
                 '}';
     }
 

@@ -5,10 +5,7 @@ import ghs.message.*;
 import org.apache.log4j.Logger;
 
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.BrokenBarrierException;
-import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.*;
 
 /**
  * The {@code Process} represents a process in a asynchronous network that executes instructions for finding
@@ -54,7 +51,7 @@ public class Process extends Thread {
 
     // maps for handling asynchronous communication with neighbors
     private Map<Integer, Process> vertexToProcess = new HashMap<>();
-    private Map<Integer, Integer> vertexToDelay = new HashMap<>();
+    private Map<Integer, Integer> vertexToRound = new HashMap<>();
 
     /**
      * Instantiates a new {@code Process}.
@@ -100,7 +97,7 @@ public class Process extends Thread {
 
         // maps for handling asynchronous communication with neighbors
         this.vertexToProcess = new HashMap<>();
-        this.vertexToDelay = new HashMap<>();
+        this.vertexToRound = new HashMap<>();
     }
 
     /**
@@ -179,16 +176,14 @@ public class Process extends Thread {
      * @return round in which the message must be sent
      */
     private int getNextRound(int neighborId) {
-        int prevDelay = this.vertexToDelay.getOrDefault(neighborId, 0);
+        int prevRound = this.vertexToRound.getOrDefault(neighborId, 0);
         int currentDelay = getDelay();
-        int finalDelay;
-        if (currentDelay < prevDelay) {
-            finalDelay = this.round + prevDelay + 1;
-        } else {
-            finalDelay = this.round + currentDelay;
+        int nextRound = this.round + currentDelay;
+        if (nextRound <= prevRound) {
+            nextRound = prevRound + 1;
         }
-        this.vertexToDelay.put(neighborId, finalDelay);
-        return finalDelay;
+        this.vertexToRound.put(neighborId, nextRound);
+        return nextRound;
     }
 
     /**
@@ -215,9 +210,10 @@ public class Process extends Thread {
      * Sends a message to master notifying of termination of the current worker process.
      */
     private void sendTerminationToMaster() {
-        log.info("Sending EXIT to master");
         boolean isLeader = this.uid == this.leaderId;
-        pushToQueue(this.master, new Exit(this.uid, this.coreEdge, this.branchEdges, isLeader));
+        Exit exitMsg = new Exit(this.uid, this.coreEdge, this.branchEdges, isLeader);
+        pushToQueue(this.master, exitMsg);
+        log.info("Sent EXIT to " + master.getName());
     }
 
     /**
@@ -234,14 +230,14 @@ public class Process extends Thread {
         // only generate a delay for a neighbor, not for myself
         if (neighborId != this.uid) {
             delay = getNextRound(neighborId);
+        } else {
+            delay = this.round + 1;
         }
         msg.setRound(delay);
         msg.setSender(this.uid);
         msg.setReceiver(neighborId);
         addToSendBuffer(msg);
-        if (msg instanceof Initiate) {
-            log.debug("Sent " + msg);
-        }
+        log.debug("Sent " + msg + ", current round=" + this.round);
     }
 
     /**
@@ -263,7 +259,7 @@ public class Process extends Thread {
      * the message is instantaneous.</p>
      */
     private void processSendBuffer() {
-        while (!this.sendBuffer.isEmpty() && this.sendBuffer.peek().getRound() <= this.round) {
+        while (!this.sendBuffer.isEmpty() && this.sendBuffer.peek().getRound() == this.round) {
             Message m = this.sendBuffer.remove();
             if (m.getReceiver() == this.uid) {  // because we allow a process to send message to itself
                 this.queue.add(m);
@@ -285,7 +281,7 @@ public class Process extends Thread {
     }
 
     /**
-     * Test whether a connect is pending over this edge
+     * Process pending {@code Connect} messages.
      */
     private void processPendingConnects() {
         // process pending connects until you can no longer process them
@@ -294,6 +290,7 @@ public class Process extends Thread {
             if (connect == null) {
                 break;
             }
+            log.debug("Trying to process pending " + connect);
             mergeOrAbsorb(connect);
             // if processed, pending connects won't have this connect again
             if (connect.equals(this.pendingConnects.peek())) {
@@ -346,9 +343,7 @@ public class Process extends Thread {
     }
 
     /**
-     * Get the least weight basic edge. Two possible cases: I have already received a Connect over that edge, or not.
-     * If I have received connect over the edge, absorb it and proceed until no basic edges are left or I find an edge
-     * over which I have not received a Connect.
+     * Tests the least weight basic edge.
      */
     private void testBasicEdge() {
         processPendingConnects();
@@ -374,7 +369,6 @@ public class Process extends Thread {
      */
     private boolean receivedReportsFromChildren() {
         if (this.children.isEmpty() && this.receivedReportsFrom.isEmpty()) {
-            log.debug("I am a leaf node. Not expecting any reports.");
             return true;
         }
         return this.children.equals(this.receivedReportsFrom);
@@ -496,8 +490,6 @@ public class Process extends Thread {
                 this.parentId = -1;     // I am root
                 this.children.add(connect.getSender());
                 wakeUp();
-            } else {
-                this.parentId = connect.getSender();
             }
             log.debug("After merge, children=" + this.children + ", new parent=" + this.parentId +
                     ", basic edges=" + this.basicEdges + ", new level=" + this.level);
@@ -616,6 +608,8 @@ public class Process extends Thread {
             Connect connect = new Connect(this.level, this.mwoe);
             sendMessage(connect, this.mwoe);    // send connect over this edge
             this.connectSent = true;
+            // check if connect already sent over that edge
+            processPendingConnects();
         } else {
             // forward changeroot along the path
             ChangeRoot forwardMsg = new ChangeRoot(this.mwoe);
@@ -674,10 +668,11 @@ public class Process extends Thread {
                 handleChangeroot(crMsg);
             } else if (msg instanceof Connect) {
                 Connect connectMsg = ((Connect) msg);
+                processPendingConnects();
                 mergeOrAbsorb(connectMsg);
             } else if (msg instanceof Exit) {
+                log.debug("Received KILL from " + this.master.getName());
                 this.selfKill = true;
-                log.info("Received KILL from MASTER");
             }
         }
     }
@@ -688,7 +683,7 @@ public class Process extends Thread {
      * @throws InterruptedException
      * @throws BrokenBarrierException
      */
-    private void executeTasks() throws InterruptedException, BrokenBarrierException {
+    private void executeTasks() throws InterruptedException, BrokenBarrierException, TimeoutException {
         processDeferQueue();
         processSendBuffer();
         this.barrier.await();
@@ -710,6 +705,8 @@ public class Process extends Thread {
                 }
 
                 if (this.selfKill) {
+                    log.debug("Shutting down...");
+                    this.barrier.reset();   // barrier not needed anymore
                     break;
                 }
 
@@ -718,6 +715,8 @@ public class Process extends Thread {
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (BrokenBarrierException e) {
+            log.info("BrokerBarrierException encountered. Expected after all threads have finished execution.");
+        } catch (TimeoutException e) {
             e.printStackTrace();
         }
     }

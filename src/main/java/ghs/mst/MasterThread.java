@@ -22,9 +22,9 @@ public class MasterThread extends Thread {
     private static Logger log = Logger.getLogger("Master");
 
     public BlockingQueue<Exit> queue = new LinkedBlockingDeque<>();
-    private int numWorkers = 0;
+    private int numWorkers;
     private Process[] workers;
-    private CyclicBarrier barrier;
+    private static CyclicBarrier barrier;
     private Set<Integer> terminatedThreads = new HashSet<Integer>();
 
     // MST info
@@ -107,7 +107,7 @@ public class MasterThread extends Thread {
      *
      * @return true if ready
      */
-    private boolean haveAllThreadsTerminated() {
+    private boolean receivedExitFromAllWorkers() {
         return this.numWorkers <= this.terminatedThreads.size();
     }
 
@@ -119,6 +119,7 @@ public class MasterThread extends Thread {
     private void handleMessage() throws InterruptedException {
         if (!this.queue.isEmpty()) {
             Exit exitMsg = this.queue.take();
+
             if (exitMsg.isLeader()) {
                 this.leaderId = exitMsg.getSender();
             }
@@ -139,17 +140,25 @@ public class MasterThread extends Thread {
         try {
             spawnWorkers();
             log.info("Workers spawned.");
-            while (!haveAllThreadsTerminated()) {
+
+            while (!receivedExitFromAllWorkers()) {
                 // wait for workers to send you EXIT messages
                 handleMessage();
             }
+            log.info("All threads have sent EXIT.");
+
             // terminate workers, i.e., broadcast EXIT to all workers (id doesn't matter)
             // workers exit when they receive this message
-            broadcastMessage(new Exit(-1));
+            Exit killMsg = new Exit(-1);
+            broadcastMessage(killMsg);
+
             // print edges in MST and weight of MST
             log.info("Final MST edges=" + this.mstEdges +
                     ", leader=" + this.leaderId +
                     ", id (core edge)=" + this.coreEdge);
+
+            // wait for workers to receive KILL signal and shut down before exiting
+            // otherwise, the barrier may interfere with some threads exiting
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

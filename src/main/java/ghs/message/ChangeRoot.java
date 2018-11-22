@@ -23,6 +23,7 @@ public class ChangeRoot extends Message {
                 this.getSender() +
                 " ===> " + this.getReceiver() +
                 ", mwoe=" + mwoe +
+                ", round=" + getRound() +
                 '}';
     }
 }

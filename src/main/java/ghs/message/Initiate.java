@@ -40,6 +40,7 @@ public class Initiate extends Message {
                 ", level=" + level +
                 ", coreEdge=" + coreEdge +
                 ", leader=" + leader +
+                ", round=" + getRound() +
                 '}';
     }
 

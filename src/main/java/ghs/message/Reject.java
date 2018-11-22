@@ -12,6 +12,7 @@ public class Reject extends Message {
         return "Reject{" +
                 this.getSender() +
                 " ===> " + this.getReceiver() +
+                ", round=" + getRound() +
                 "}";
     }
 }

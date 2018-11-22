@@ -37,6 +37,7 @@ public class Test extends Message implements Comparable {
                 " ===> " + this.getReceiver() +
                 ", coreEdge=" + coreEdge +
                 ", level=" + level +
+                ", round=" + getRound() +
                 '}';
     }
 }

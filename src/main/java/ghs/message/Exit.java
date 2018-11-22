@@ -4,6 +4,9 @@ import edu.princeton.cs.algs4.Edge;
 
 import java.util.Set;
 
+/**
+ * Used to exit the program gracefully and send MST info to master thread.
+ */
 public class Exit extends Message implements Comparable {
     private Set<Edge> branchEdges;
     private boolean isLeader;

@@ -43,6 +43,7 @@ public class Report extends Message implements Comparable {
                 this.getSender() +
                 " ===> " + this.getReceiver() +
                 ", mwoe=" + mwoe +
+                ", round=" + getRound() +
                 '}';
     }
 }
