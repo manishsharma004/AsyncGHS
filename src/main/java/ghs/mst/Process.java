@@ -660,7 +660,7 @@ public class Process extends Thread {
                 handleAccept(acceptMsg);
             } else if (msg instanceof Reject) {
                 Reject rejectMsg = ((Reject) msg);
-                handleReject(msg);
+                handleReject(rejectMsg);
             } else if (msg instanceof Report) {
                 Report reportMsg = ((Report) msg);
                 handleReports(reportMsg);
