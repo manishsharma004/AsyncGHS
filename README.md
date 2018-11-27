@@ -1,14 +1,15 @@
-# Distributed Computing Projects
+# AsynchGHS
 
-### Project 1
-Leader election using floodmax with convergecast termination for synchronous networks is added as a [release](https://github.com/Sharayu2554/FloodMax-DistributedComputing/releases/tag/project1).
+*A distributed algorithm to compute minimum spanning tree in asynchronous networks.*
 
-### Project 2
-AsynchGHS algorithm to find the MST in a distributed fashion.
+To know more about how the algorithm works, see [Distributed Algorithms by Nancy Lynch](https://www.amazon.com/Distributed-Algorithms-Kaufmann-Management-Systems/dp/1558603484).
 
-**Note:** The project is now a maven project. Re-import the project in IntelliJ Idea to update your workspace.
+#### Simulating an asynchronous network
+We simulate an asynchronous network by adding random delays (less than 20 time units) to messages. However, the order of sending and processing of messages is preserved. For example, if a process `p` sends two messages, `m1` and `m2` to process `q` in that order, `q` shall process `m1` first followed by `m2`.
 
-### How to contribute
-- Always format your code using IntelliJ Idea's *Code > Reformat Code* before pushing your changes.
-- Create a new branch to work on a new feature/bug. Merge to master only after it is tested.
-- Commit your changes to your branch (not master) at end of day, even if they don't work so that someone else can carry on without repeating the work. 
+#### How to Run
+*Requires Java 8*
+
+Using **Ant:** Extract the compressed file and run `ant run -Darg0=in/tinyEWG.txt`.
+
+Using **Maven:** Import the project in IntelliJ Idea as a Maven project and run `TestMST.java` with command line arguments `in/tinyEWG.txt`.
